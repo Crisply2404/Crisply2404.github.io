@@ -7,6 +7,8 @@ export default defineConfig({
       input: {
         main: 'index.html',
         notFound: '404.html',
+        notes: 'notes/index.html',
+        essays: 'essays/index.html',
       },
     },
   },

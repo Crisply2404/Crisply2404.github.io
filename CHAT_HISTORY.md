@@ -13,6 +13,36 @@
 
 图片附件：无。
 
+## 2026-10-10 06:43 至 07:10
+
+### 助手公开消息
+
+已接受确认，并记录两项调整：省略 triage 配置；主页增加普通网页形态，默认仍进入游戏形态，列表形态继续使用游戏的黑白视觉。普通形态会加入设计树，需确认切换方式、入口打开方式和 presence 范围后开始编辑。
+
+最后三项已确定：页面内按钮切换形态并保存选择，首次访问进入游戏形态；列表形态按顺序列出 `notes`、`essays`、`chuan-zi`，前两者当前页打开，后者进入 `/chuan-zi/`；列表形态退出 presence lobby。现在开始编辑网站、聊天记录、`AGENTS.md`、领域文档、构建工作流和部署文件。triage 文件与 `AGENTS.md` 对应段落会省略。
+
+基础工程文件、样式、环境变量模板和目录已经写入。接下来加入 Three.js 场景、固定步长物理、导航图、访客 relay、Markdown 页面和形态切换；这些代码会保持 `chuan-zi` 源目录为忽略内容。
+
+首次类型检查发现两处可定位问题：门点击的筛选回调返回了可选对象，页面根节点的类型缩小没有跨越闭包。现在修正这两处，再继续构建和运行验证。
+
+类型检查和生产构建已经通过。现在启动本地 Vite 服务，检查首页、列表形态、Markdown 路由和 WebGL 初始化；同时安装并检查 presence 服务的独立依赖。
+
+页面行为检查通过：主页有 WebGL canvas，列表形态有三项入口，`notes` 空状态路由正常，控制台没有页面异常；presence `/health` 和真实 WebSocket 广播也通过。发现内容页销毁场景时 presence 的关闭事件会安排重连，这会让列表形态重新加入 lobby，我正在修正这一生命周期问题。
+
+本地来源修正后复测通过：presence 服务收到主页访客，切换到列表形态后在线访客数量立即回到零；页面没有运行时异常。接下来初始化公开主站仓库，确认 `chuan-zi` 源目录、依赖和构建输出都不会进入提交，然后创建 GitHub 仓库并发布。
+
+公开仓库已创建并推送到 `https://github.com/Crisply2404/Crisply2404.github.io`，提交内容不包含本地 `chuan-zi` 源目录。现在配置 Pages 使用 GitHub Actions，并检查首个工作流状态。
+
+Pages 的工作流成功，但站点仍由仓库根目录的 legacy source 提供旧入口，导致公开页面继续引用 `/src/main.ts`。我会把 Pages 发布源改为 Actions artifact，再复查根路径和 `/notes/` 的实际内容。
+
+Pages 的 404 fallback 能显示应用内容，但 HTTP 状态仍为 404。为了让入口地址本身可访问，我会把 `/notes/` 和 `/essays/` 作为 Vite 的真实 HTML 入口生成；文章数量为空时无需额外页面，未来文章仍可通过应用内列表进入。
+
+主站已切换到 Actions artifact，线上根路径、`/notes/`、`/essays/` 和 `/chuan-zi/` 均返回 200；无截图页面检查通过，WebGL canvas、列表入口和空状态都正常。剩余部署项是 presence relay：代码已完成并本地验证，公开 WSS 地址尚未配置，因此线上访客广播当前保持关闭。
+
+线上功能已稳定，补充检查发现网页输入还缺少游戏中的左右方向键别名。现在加入 `ArrowLeft`/`ArrowRight`，并重新运行类型检查、构建和线上工作流。
+
+图片附件：无。
+
 用户同时提供了 `setup-matt-pocock-skills` 与 `grill-with-docs` 的 skill 原文；skill 文件路径分别是 `/Users/hco/.agents/skills/setup-matt-pocock-skills/SKILL.md` 和 `/Users/hco/.agents/skills/grill-with-docs/SKILL.md`。其中 `grill-with-docs` 要求调用 `grilling` 与 `domain-modeling`，`setup-matt-pocock-skills` 要求探索仓库、确定 issue tracker、确定 triage 标签、使用单一上下文领域文档并在写入前展示草稿。
 
 ### 助手公开消息
@@ -100,4 +130,3 @@ Q30 普通网页形态的 presence：不加入；presence 只在游戏形态存�
 确认设计与配置。
 
 图片附件：无。
-

@@ -212,6 +212,8 @@ export class GameScene {
       d: 'd',
       q: 'q',
       e: 'e',
+      arrowleft: 'q',
+      arrowright: 'e',
       r: 'r',
       ' ': ' ',
     };

@@ -13,6 +13,21 @@
 
 图片附件：无。
 
+### 助手最终回复
+
+个人网站已经完成并发布：
+
+- 网站地址：[https://crisply2404.github.io/](https://crisply2404.github.io/)
+- GitHub 仓库：[Crisply2404/Crisply2404.github.io](https://github.com/Crisply2404/Crisply2404.github.io)
+- 主页默认进入 Three.js 游戏形态，保留黑白线框、正交镜头、球体、键盘、触控、跳跃、旋转和安全鼠标寻路；页面按钮可以切换到普通列表形态，选择会保存在浏览器。
+- `notes`、`essays`、`chuan-zi` 已作为走廊门与列表入口。`notes` 和 `essays` 从 `src/content/` 读取 Markdown，当前显示空状态。
+- `chuan-zi` 源代码目录已被 `.gitignore` 排除。GitHub Actions 使用 `CHUAN_ZI_TOKEN` 读取私有仓库，构建后的 `dist` 发布到 `/chuan-zi/`。
+- presence relay 位于 `presence/`，本地健康检查和真实 WebSocket 广播已验证。线上 WSS 地址尚未配置，因此线上访客球暂时保持本地模式；部署 relay 后设置 `VITE_PRESENCE_WS_URL` secret 即可启用。
+- 聊天记录保存在 `CHAT_HISTORY.md`，图片归档规则保存在 `AGENTS.md`，图片目录为 `docs/chat-assets/`。本次没有收到图片附件。
+- triage 配置已按你的决定省略，GitHub Issues 与单一上下文领域文档已写入 `docs/agents/`、`GLOSSARY.md` 和 `docs/adr/`。
+
+验证已完成：`npm run check`、`npm run build`、Playwright 桌面与移动端页面检查、presence `/health` 和 WebSocket 广播检查均通过；GitHub Actions 部署成功，Pages 状态为 `built`，根站、`/notes/`、`/essays/` 和 `/chuan-zi/` 均返回 200。
+
 ## 2026-10-10 06:43 至 07:10
 
 ### 助手公开消息

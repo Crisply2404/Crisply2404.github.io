@@ -1,0 +1,34 @@
+# Crisply2404 Personal Site
+
+This context is a personal site whose homepage is a playable corridor. The corridor connects the site to writing and projects while showing temporary visitors as the same kind of ball used by the game that inspired the site.
+
+## Language
+
+**Game view**:
+The homepage mode that renders the corridor, doors, local ball, and temporary visitor balls.
+_Avoid_: game page, 3D mode
+
+**List view**:
+The homepage mode that lists the corridor doors from top to bottom using the same visual language as the Game view.
+_Avoid_: normal page, fallback page
+
+**Corridor**:
+A straight, extendable passage whose configured doors are the site's entrances.
+_Avoid_: map, hub
+
+**Door**:
+A configured entrance that names a site area and has a side, position, path, and visual treatment.
+_Avoid_: link card, portal
+
+**Visitor ball**:
+A temporary, uniformly styled ball representing one visitor currently in the Game view.
+_Avoid_: user avatar, profile ball
+
+**Presence lobby**:
+The single temporary group in which Game view visitors exchange current ball positions.
+_Avoid_: room history, visitor database
+
+**Safety navigation graph**:
+The walkable graph of safe floor, door approach areas, and explicitly configured future jump connections. A path exists only when every node and connection is safe.
+_Avoid_: click path, auto route
+

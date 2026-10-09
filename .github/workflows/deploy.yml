@@ -1,0 +1,73 @@
+name: Deploy personal site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      VITE_PRESENCE_WS_URL: ${{ secrets.VITE_PRESENCE_WS_URL }}
+    steps:
+      - name: Checkout personal site
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install personal site dependencies
+        run: npm ci
+
+      - name: Build personal site
+        run: npm run build
+
+      - name: Checkout private chuan-zi source
+        uses: actions/checkout@v4
+        with:
+          repository: Crisply2404/chuan-zi
+          token: ${{ secrets.CHUAN_ZI_TOKEN }}
+          path: chuan-zi-source
+
+      - name: Build chuan-zi artifact
+        working-directory: chuan-zi-source
+        env:
+          VITE_WS_URL: ${{ secrets.CHUAN_ZI_WS_URL }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Place chuan-zi artifact
+        run: |
+          mkdir -p dist/chuan-zi
+          cp -R chuan-zi-source/dist/. dist/chuan-zi/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+

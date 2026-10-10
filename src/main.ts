@@ -23,10 +23,14 @@ function setMode(mode: ViewMode): void {
   renderRoute();
 }
 
-async function renderHome(): Promise<void> {
-  const generation = ++routeGeneration;
+function disposeScene(): void {
   activeScene?.destroy();
   activeScene = undefined;
+}
+
+async function renderHome(): Promise<void> {
+  const generation = ++routeGeneration;
+  disposeScene();
   if (getMode() === 'list') {
     appRoot.innerHTML = renderListPage();
     appRoot.querySelector<HTMLButtonElement>('[data-view-toggle]')?.addEventListener('click', () => setMode('game'));
@@ -63,16 +67,21 @@ function renderRoute(): void {
   const match = path.match(/^\/(notes|essays)(?:\/(.+))?$/) as RegExpMatchArray | null;
   routeGeneration += 1;
   if (match) {
-    activeScene?.destroy();
-    activeScene = undefined;
+    disposeScene();
     const kind = match[1] as CollectionKind;
     appRoot.innerHTML = match[2] ? renderArticle(kind, match[2]) : renderCollection(kind);
     return;
   }
-  activeScene?.destroy();
-  activeScene = undefined;
+  disposeScene();
   appRoot.innerHTML = renderCollection('notes');
 }
 
 window.addEventListener('popstate', renderRoute);
+window.addEventListener('pagehide', () => {
+  routeGeneration += 1;
+  disposeScene();
+});
+window.addEventListener('pageshow', (event) => {
+  if (event.persisted) renderRoute();
+});
 renderRoute();

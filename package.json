@@ -11,6 +11,7 @@
     "test": "tsx --test tests/physics.test.ts",
     "test:browser": "node tests/browser-check.mjs",
     "test:view": "node tests/view-check.mjs",
+    "test:history": "npm run build && node tests/history-check.mjs",
     "test:reference": "node tests/reference-check.mjs"
   },
   "dependencies": {

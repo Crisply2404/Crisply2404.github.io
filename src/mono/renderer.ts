@@ -38,8 +38,9 @@ export class MonoRenderer {
     this.target.depthTexture = new THREE.DepthTexture(1, 1, THREE.UnsignedIntType);
     this.target.texture.colorSpace = THREE.LinearSRGBColorSpace;
     this.stroke = this.shader(strokeVertex, include(strokeFragment, coverage));
-    this.playerFill = this.shader(playerVertex, include(playerFragment, coverage), { outline: { value: false } });
-    this.playerOutline = this.shader(playerVertex, include(playerFragment, coverage), { outline: { value: true } });
+    this.playerFill = this.shader(playerVertex, include(playerFragment, coverage));
+    this.playerOutline = this.shader(playerVertex, include(playerFragment, coverage));
+    this.playerOutline.defines = { PLAYER_OUTLINE: 1 };
     this.gatePanel = this.shader(panelVertex, include(panelFragment, distance), { panel_size: { value: new THREE.Vector2(58, 72) } });
     const copyMaterial = new THREE.ShaderMaterial({
       uniforms: { image: { value: this.target.texture } },

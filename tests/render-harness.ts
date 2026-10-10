@@ -3,6 +3,7 @@ import { VisualBuilder } from '../src/mono/objects';
 import { MonoRenderer } from '../src/mono/renderer';
 import { CONFIG } from '../src/mono/config';
 import { ControlPreview } from '../src/mono/control-preview';
+import { NavigationRipple } from '../src/mono/navigation-ripple';
 import '../src/styles.css';
 
 await document.fonts.load('600 64px "Mono Tower"');
@@ -98,6 +99,14 @@ async function run(): Promise<Record<string, unknown>> {
       check(foreground.data.every((value, index) => index % 4 === 3 || value === 0), 'Foreground failed to hide player'); checks += 1;
       occluder.position.multiplyScalar(-1); const behind = capture();
       check(baseline.data.every((value, index) => value === behind.data[index]), 'Background hid player outline'); checks += 1;
+      scene.remove(occluder);
+      const rearLine = builder.createStroke([[
+        new THREE.Vector3(-10, 0, -30).applyQuaternion(camera.quaternion),
+        new THREE.Vector3(10, 0, -30).applyQuaternion(camera.quaternion),
+      ]]);
+      scene.add(rearLine);
+      const opaqueBall = capture();
+      check(baseline.data.every((value, index) => value === opaqueBall.data[index]), `Player failed to hide background line at ${width}x${height} view ${view}; center ${pixel(opaqueBall, center.x, center.y)}`); checks += 1;
       scene.clear();
       const checkpoint = builder.createCheckpoint(new THREE.Vector3(0, 19.2, 0));
       scene.add(checkpoint); checkpoint.update(camera, [], 0, canvas.height);
@@ -130,6 +139,41 @@ async function run(): Promise<Record<string, unknown>> {
   capture();
   check(exit.getObjectByName('ExitSignFront') !== undefined && exit.getObjectByName('ExitSignBack') !== undefined, 'Double-sided exit signs absent'); checks += 1;
   return { checks, widths };
+}
+
+async function runSiteChecks(): Promise<Record<string, unknown>> {
+  rendering.resize(1280, 800);
+  camera.left = -640; camera.right = 640; camera.top = 400; camera.bottom = -400; camera.updateProjectionMatrix();
+  camera.position.set(0, 640, 800); camera.lookAt(0, 0, 0); camera.updateMatrixWorld();
+  let checks = 0;
+  scene.clear();
+  const gate = builder.createSiteGate(new THREE.Vector3(0, 20, 0), 0, '击鼓传字');
+  gate.quaternion.copy(camera.quaternion); scene.add(gate);
+  const baseline = capture();
+  const rearLine = builder.createStroke([[
+    new THREE.Vector3(-20, 36, -40).applyQuaternion(camera.quaternion),
+    new THREE.Vector3(20, 36, -40).applyQuaternion(camera.quaternion),
+  ]]);
+  scene.add(rearLine);
+  const occluded = capture();
+  check(baseline.data.every((value, index) => value === occluded.data[index]), 'Door interior failed to hide background line'); checks += 1;
+  scene.clear();
+  const exit = builder.createSiteGate(new THREE.Vector3(0, 20, 0));
+  const graphic = exit.getObjectByName('ExitGraphic') as THREE.Mesh;
+  scene.add(graphic); await builder.ready();
+  const white = new THREE.Mesh(new THREE.PlaneGeometry(100, 60), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }));
+  white.position.set(0, 90, -2); scene.add(white);
+  const transparent = capture();
+  check(brightness(transparent, project(new THREE.Vector3(-30, 104, 0)), 0) > 0.9, 'Exit graphic background must be transparent'); checks += 1;
+  scene.clear();
+  const ripple = new NavigationRipple([{ gx: 0, gy: 0, gz: 0, type: 'standard' }]);
+  scene.add(ripple); ripple.show(new THREE.Vector3(16, 20, 0)); ripple.update(0.335);
+  const rippleImage = capture();
+  check(brightness(rippleImage, project(new THREE.Vector3(-4, 20.05, 0)), 1) > 0.1, 'Ripple is missing on the block surface'); checks += 1;
+  check(brightness(rippleImage, project(new THREE.Vector3(36, 20.05, 0)), 1) === 0, 'Ripple escaped the block surface'); checks += 1;
+  ripple.update(1); check(!ripple.visible, 'Ripple did not finish'); checks += 1;
+  scene.clear();
+  return { checks };
 }
 
 async function referencePixels(name: string): Promise<number[]> {
@@ -178,4 +222,4 @@ function previewPixels(orientation: 0 | 1 | 2): { width: number; height: number;
   return result;
 }
 
-Object.assign(window, { runRenderChecks: run, referencePixels, previewPixels });
+Object.assign(window, { runRenderChecks: run, runSiteChecks, referencePixels, previewPixels });

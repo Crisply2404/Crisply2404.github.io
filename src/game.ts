@@ -1,14 +1,15 @@
 import * as THREE from 'three';
 import { PresenceClient } from './presence';
-import { checkpointPositions, corridorBlocks, corridorEndZ, corridorFloorY, corridorStartZ, corridorWidth, doors, doorPosition, fixedStep, playerRadius, spawn } from './sceneConfig';
+import { corridorBlocks, corridorEndZ, corridorStartZ, doors, doorPosition, fixedStep, playerRadius, spawn } from './sceneConfig';
 import type { AvatarState, DoorConfig } from './types';
 import { CONFIG, VIEWPORT, movementDirection, type WasdOrientation } from './mono/config';
-import { VisualBuilder, type CheckpointMarker } from './mono/objects';
+import { VisualBuilder } from './mono/objects';
 import { MonoRenderer } from './mono/renderer';
 import { PhysicsEngine, PlayerState, physicsReady } from './mono/physics';
-import { SafetyNavigationGraph } from './mono/navigation';
+import { SafetyNavigationGraph, navigationForce } from './mono/navigation';
 import { MobileControls } from './mono/mobile';
 import { ControlPreview } from './mono/control-preview';
+import { NavigationRipple } from './mono/navigation-ripple';
 
 type KeyName = 'w' | 'a' | 's' | 'd' | 'q' | 'e' | 'r' | ' ';
 interface RemoteAvatar { target: AvatarState; object: THREE.Group }
@@ -22,7 +23,6 @@ export class GameScene {
   private readonly rendering: MonoRenderer;
   private readonly visualBuilder: VisualBuilder;
   private readonly localAvatar: THREE.Group;
-  private readonly contactMarker: THREE.Group;
   private readonly remoteAvatars = new Map<string, RemoteAvatar>();
   private readonly keys = new Set<KeyName>();
   private readonly listenerAbort = new AbortController();
@@ -31,17 +31,12 @@ export class GameScene {
   private readonly navigation = new SafetyNavigationGraph(this.blocks);
   private readonly physics = new PhysicsEngine(this.blocks);
   private readonly player = new PlayerState();
-  private readonly checkpoints: CheckpointMarker[] = [];
   private readonly doorObjects: THREE.Group[] = [];
-  private readonly checkpoint = spawn.clone();
+  private readonly ripple = new NavigationRipple(this.blocks);
+  private floorObjects!: THREE.Group;
   private readonly mobile: MobileControls;
   private readonly controlPreview: ControlPreview;
   private readonly touchKeys = new Set<string>();
-  private checkpointIndex = -1;
-  private readonly feedback = document.createElement('p');
-  private feedbackRemaining = 0;
-  private audio: AudioContext | undefined;
-  private readonly doorLinks = document.createElement('nav');
   private animationFrame = 0;
   private previousTime = performance.now();
   private accumulator = 0;
@@ -61,8 +56,6 @@ export class GameScene {
     this.canvas = document.createElement('canvas'); this.canvas.className = 'scene-canvas'; this.root.append(this.canvas);
     this.rendering = new MonoRenderer(this.canvas); this.visualBuilder = new VisualBuilder(this.rendering);
     this.localAvatar = this.visualBuilder.createPlayerMesh();
-    this.contactMarker = this.visualBuilder.createContactMarker();
-    this.contactMarker.scale.setScalar(0.3);
     const stored = Number(localStorage.getItem('mono-wasd-orientation') ?? 0);
     if (![0, 1, 2].includes(stored)) throw new Error('Invalid WASD orientation');
     this.orientation = stored as WasdOrientation;
@@ -83,7 +76,7 @@ export class GameScene {
 
   public destroy(): void {
     this.destroyed = true; this.listenerAbort.abort(); this.presence.destroy(); window.cancelAnimationFrame(this.animationFrame);
-    this.mobile.dispose(); this.controlPreview.dispose(); this.physics.dispose(); this.audio?.close();
+    this.mobile.dispose(); this.controlPreview.dispose(); this.physics.dispose();
     this.scene.traverse((object) => {
       if (object instanceof THREE.Mesh) {
         object.geometry.dispose();
@@ -101,32 +94,26 @@ export class GameScene {
   };
 
   private buildScene(): void {
-    this.scene.add(this.visualBuilder.createLevelMesh(this.blocks));
+    this.floorObjects = this.visualBuilder.createLevelMesh(this.blocks);
+    this.scene.add(this.floorObjects, this.ripple);
     for (const door of doors) this.addDoor(door);
-    const exit = this.visualBuilder.createGate('', new THREE.Vector3(0, 40.02, corridorEndZ + 20));
+    const exit = this.visualBuilder.createSiteGate(new THREE.Vector3(0, 40.02, corridorEndZ + 20));
     exit.rotation.y = 0;
     exit.name = 'CorridorExit';
     this.scene.add(exit);
-    for (const position of checkpointPositions) {
-      const marker = this.visualBuilder.createCheckpoint(position); this.checkpoints.push(marker); this.scene.add(marker);
-    }
-    this.localAvatar.position.copy(spawn); this.scene.add(this.localAvatar, this.contactMarker);
+    this.localAvatar.position.copy(spawn); this.scene.add(this.localAvatar);
     this.player.place(spawn);
-    this.feedback.className = 'game-feedback'; this.root.append(this.feedback);
-    this.doorLinks.className = 'door-links'; this.doorLinks.setAttribute('aria-label', 'Open door in new tab');
-    this.root.append(this.doorLinks);
+    const hint = document.createElement('p'); hint.className = 'game-hint';
+    hint.textContent = 'WASD 移动 · Space 跳跃 · Q / E 或 ← / → 旋转视角 · Tab 切换 W 指向 · 点击地面移动';
+    this.root.append(hint);
+    hint.addEventListener('animationend', () => hint.remove(), { signal: this.listenerAbort.signal });
   }
 
   private addDoor(door: DoorConfig): void {
     const position = doorPosition(door);
-    const number = String(doors.indexOf(door) + 1).padStart(2, '0');
-    const group = this.visualBuilder.createGate(door.appearance === 'exit' ? '' : number, position, Math.PI / 2, door.appearance === 'completed');
-    this.visualBuilder.addLabel(group, door.title, 94, '#fff', 32, 0.35);
-    group.userData.door = door; group.userData.entry = new THREE.Vector3(position.x, corridorFloorY + 20, position.z);
+    const group = this.visualBuilder.createSiteGate(position, Math.PI / 2, door.title);
+    group.userData.door = door;
     this.scene.add(group); this.doorObjects.push(group);
-    const link = document.createElement('a'); link.href = door.path; link.target = '_blank'; link.rel = 'noopener';
-    link.textContent = `${number} ${door.title} ↗`; link.title = `${door.title} · Open in new tab`;
-    this.doorLinks.append(link);
   }
 
   private installInput(): void {
@@ -142,7 +129,6 @@ export class GameScene {
       if (key === 'q') this.targetCameraAngle += Math.PI / 2; else if (key === 'e') this.targetCameraAngle -= Math.PI / 2; else if (key === 'r') this.resetPlayer(); else this.keys.add(key);
       if (key === ' ') this.setJump(true);
       if (['w', 'a', 's', 'd'].includes(key)) this.path = [];
-      this.audio ??= new AudioContext();
     }, { signal: this.listenerAbort.signal });
     window.addEventListener('keyup', (event) => { const key = keyMap[event.key.toLowerCase()]; if (key) { this.keys.delete(key); if (key === ' ') this.setJump(false); } }, { signal: this.listenerAbort.signal });
     this.canvas.addEventListener('click', this.handleCanvasClick, { signal: this.listenerAbort.signal });
@@ -154,14 +140,12 @@ export class GameScene {
     const bounds = this.canvas.getBoundingClientRect();
     const pointer = new THREE.Vector2((event.clientX - bounds.left) / bounds.width * 2 - 1, -((event.clientY - bounds.top) / bounds.height) * 2 + 1);
     const raycaster = new THREE.Raycaster(); raycaster.setFromCamera(pointer, this.camera);
-    const target = new THREE.Vector3(); const floor = new THREE.Plane(new THREE.Vector3(0, 1, 0), -corridorFloorY);
-    if (!raycaster.ray.intersectPlane(floor, target)) return;
-    if (target.x < -corridorWidth / 2 || target.x > corridorWidth / 2 || target.z > corridorStartZ || target.z < corridorEndZ) return;
-    target.x = THREE.MathUtils.clamp(target.x, -corridorWidth / 2 + playerRadius, corridorWidth / 2 - playerRadius);
-    target.z = THREE.MathUtils.clamp(target.z, corridorEndZ + playerRadius, corridorStartZ - playerRadius);
-    target.y = corridorFloorY + playerRadius + 0.02;
+    const hit = raycaster.intersectObject(this.floorObjects.getObjectByName('BlackBlocks')!, false)[0];
+    if (!hit || !hit.face || hit.face.normal.y < 0.99) return;
+    const target = hit.point.clone();
+    target.y += playerRadius + 0.02;
     const path = this.navigation.findPath(this.player.pos.clone().setY(target.y), target);
-    if (path.length) this.path = path;
+    if (path.length) { this.path = path; this.ripple.show(hit.point); }
   };
 
   private readonly frame = (now: number): void => {
@@ -181,7 +165,7 @@ export class GameScene {
         this.player.jumpBuffer = 8;
         this.automaticJump = true;
       }
-      if (delta.length() < 4) {
+      if (delta.length() < 0.5) {
         if (!next.jump || this.player.grounded) { this.path.shift(); this.automaticJump = false; }
         if (!this.path.length) this.player.vel.set(0, this.player.vel.y, 0);
       } else { input = new THREE.Vector2(delta.x, delta.z); automatic = true; }
@@ -189,8 +173,7 @@ export class GameScene {
     const force = new THREE.Vector3();
     if (input.lengthSq() || touch.lengthSq()) {
       if (automatic) {
-        const desired = new THREE.Vector3(input.x, 0, input.y).clampLength(0, 4.5);
-        force.copy(desired).multiplyScalar(1 / CONFIG.friction).sub(new THREE.Vector3(this.player.vel.x, 0, this.player.vel.z)).clampLength(0, CONFIG.moveSpeed);
+        force.copy(navigationForce(this.player.pos, this.player.vel, this.path[0].position));
       } else {
         if (!this.wasMoving) this.movementCameraAngle = this.targetCameraAngle;
         const [x, z] = movementDirection(input.x, input.y, this.movementCameraAngle, this.orientation);
@@ -198,7 +181,7 @@ export class GameScene {
         force.set(x + tx, 0, z + tz).normalize().multiplyScalar(CONFIG.moveSpeed);
       }
     }
-    if (!this.physics.step(this.player, force) || this.player.pos.y < this.checkpoint.y - 300) this.resetPlayer();
+    if (!this.physics.step(this.player, force) || this.player.pos.y < spawn.y - 300) this.resetPlayer();
     this.wasMoving = input.lengthSq() > 0 || touch.lengthSq() > 0; this.localAvatar.position.copy(this.player.pos);
     for (const remote of this.remoteAvatars.values()) remote.object.position.lerp(new THREE.Vector3(remote.target.x, remote.target.y, remote.target.z), 0.22);
     this.resolveAvatarOverlap(); this.checkDestinations();
@@ -226,13 +209,6 @@ export class GameScene {
 
   private checkDestinations(): void {
     if (this.routePending) return;
-    checkpointPositions.forEach((position, index) => {
-      if (index > this.checkpointIndex && this.atDestination(position)) {
-        this.checkpoint.copy(position); this.checkpointIndex = index;
-        this.checkpoints.forEach((marker, markerIndex) => marker.setActive(markerIndex === index));
-        this.showFeedback('CHECKPOINT', 0.6); this.playCheckpointSound();
-      }
-    });
     for (const door of doors) {
       if (this.atDestination(doorPosition(door))) {
         this.routePending = true;
@@ -244,37 +220,20 @@ export class GameScene {
 
   private setJump(pressed: boolean): void { this.player.jump(pressed, this.jumpPressed); this.jumpPressed = pressed; }
   private resetInput(): void { this.keys.clear(); this.touchKeys.clear(); this.mobile?.reset(); this.jumpPressed = this.wasMoving = this.automaticJump = false; this.player.jumpBuffer = 0; this.path = []; }
-  private resetPlayer(): void { this.player.place(this.checkpoint); this.resetInput(); }
-  private showFeedback(text: string, duration: number): void { this.feedback.textContent = text; this.feedbackRemaining = duration; }
-  private playCheckpointSound(): void {
-    this.audio ??= new AudioContext();
-    const buffer = this.audio.createBuffer(1, Math.floor(this.audio.sampleRate * 0.12), this.audio.sampleRate);
-    const samples = buffer.getChannelData(0);
-    for (let index = 0; index < samples.length; index += 1) {
-      const time = index / this.audio.sampleRate;
-      samples[index] = Math.sin(Math.PI * 2 * (660 + 330 * time / 0.12) * time) * Math.exp(-24 * time) * 0.12;
-    }
-    const source = this.audio.createBufferSource(); source.buffer = buffer; source.connect(this.audio.destination); source.start();
-  }
+  private resetPlayer(): void { this.player.place(spawn); this.resetInput(); }
 
   private render(delta: number): void {
     this.cameraAngle = THREE.MathUtils.damp(this.cameraAngle, this.targetCameraAngle, 18, delta);
     this.camera.position.set(this.player.pos.x + Math.sin(this.cameraAngle) * VIEWPORT.cameraDistance, this.player.pos.y + VIEWPORT.cameraHeight, this.player.pos.z + Math.cos(this.cameraAngle) * VIEWPORT.cameraDistance);
     this.camera.lookAt(this.player.pos); this.localAvatar.quaternion.copy(this.camera.quaternion); for (const remote of this.remoteAvatars.values()) remote.object.quaternion.copy(this.camera.quaternion);
-    this.camera.updateMatrixWorld(); this.scene.updateMatrixWorld(true);
-    this.contactMarker.visible = this.player.grounded;
-    this.contactMarker.position.copy(this.physics.contactPosition).add(new THREE.Vector3(0, 6, 0));
-    this.feedbackRemaining = Math.max(0, this.feedbackRemaining - delta);
-    this.feedback.hidden = this.feedbackRemaining === 0;
-    for (const [index, group] of this.doorObjects.entries()) {
-      const projected = group.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 126, 0)).project(this.camera);
-      const link = this.doorLinks.children[index] as HTMLAnchorElement;
-      link.hidden = Math.abs(projected.x) > 0.94 || Math.abs(projected.y) > 0.88;
-      link.style.left = `${(projected.x + 1) * this.root.clientWidth / 2}px`;
-      link.style.top = `${(1 - projected.y) * this.root.clientHeight / 2}px`;
+    this.camera.updateMatrixWorld();
+    for (const group of this.doorObjects) {
+      const label = group.getObjectByName('DoorTitle')!;
+      label.quaternion.copy(group.quaternion).invert().multiply(this.camera.quaternion);
+      const screenScale = this.root.clientHeight / (this.camera.top - this.camera.bottom);
+      label.scale.setScalar(Math.max(1, 14 / (label.userData.glyphHeight * screenScale)));
     }
-    const viewportHeight = this.root.clientHeight * window.devicePixelRatio;
-    for (const checkpoint of this.checkpoints) checkpoint.update(this.camera, [this.localAvatar, ...[...this.remoteAvatars.values()].map((remote) => remote.object)], delta, viewportHeight);
+    this.ripple.update(delta); this.scene.updateMatrixWorld(true);
     this.rendering.render(this.scene, this.camera);
     this.controlPreview.update(this.camera, this.targetCameraAngle, delta, this.root.clientHeight);
   }

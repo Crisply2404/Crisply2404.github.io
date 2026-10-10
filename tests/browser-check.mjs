@@ -12,8 +12,9 @@ page.on('console', (message) => { if (message.type() === 'error') errors.push(me
 await page.goto('http://localhost:5174/tests/render.html');
 await page.waitForFunction(() => typeof window.runRenderChecks === 'function');
 const results = await page.evaluate(() => window.runRenderChecks());
+const siteResults = await page.evaluate(() => window.runSiteChecks());
 assert.deepEqual(errors, []);
-console.log(JSON.stringify({ rendering: results }));
+console.log(JSON.stringify({ rendering: results, site: siteResults }));
 await page.goto('http://localhost:5174/');
 await page.waitForSelector('.scene-canvas');
 await page.waitForFunction(() => document.querySelector('canvas')?.width > 100);
@@ -30,6 +31,8 @@ console.log('浏览器渲染、形态切换和选择保存检查通过。');
 
 await page.goto('http://localhost:5174/tests/game.html');
 await page.waitForFunction(() => window.game?.player.grounded);
+assert.equal(await page.locator('.door-links').count(), 0);
+assert.match(await page.locator('.game-hint').textContent(), /Q \/ E.*Tab/);
 const state = () => page.evaluate(() => {
   const game = window.game;
   return { x: game.player.pos.x, y: game.player.pos.y, z: game.player.pos.z, angle: game.targetCameraAngle,
@@ -58,6 +61,7 @@ const clickWorld = async (x, z) => {
   await page.mouse.click(projected.x, projected.y);
 };
 await clickWorld(0, -100);
+await page.waitForFunction(() => window.game.ripple.visible);
 await page.waitForFunction(() => window.game.path.length === 0 && Math.abs(window.game.player.pos.z + 100) < 5);
 const safe = await state();
 await clickWorld(200, -100);
@@ -75,6 +79,7 @@ await page.waitForTimeout(100);
 assert.deepEqual(await page.evaluate(() => window.routes), ['/notes/']);
 await page.keyboard.press('Tab');
 assert.equal(await page.locator('.control-preview').isVisible(), true);
+await page.waitForSelector('.game-hint', { state: 'detached' });
 assert.deepEqual(errors, []);
 console.log('真实键盘移动、镜头旋转、跳跃、鼠标寻路和自动进入门检查通过。');
 
@@ -118,7 +123,8 @@ for (const deviceScaleFactor of [2, 3]) {
   await dense.goto('http://localhost:5174/tests/render.html');
   await dense.waitForFunction(() => typeof window.runRenderChecks === 'function');
   const results = await dense.evaluate(() => window.runRenderChecks());
-  console.log(JSON.stringify({ deviceScaleFactor, rendering: results }));
+  const site = await dense.evaluate(() => window.runSiteChecks());
+  console.log(JSON.stringify({ deviceScaleFactor, rendering: results, site }));
   await dense.close();
 }
 assert.deepEqual(errors, []);

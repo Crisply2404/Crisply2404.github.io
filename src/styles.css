@@ -92,17 +92,25 @@ a {
   color: #8c8c8c;
 }
 
-.game-feedback {
+.game-hint {
   position: absolute;
-  top: 56px;
+  top: 76px;
   left: 50%;
   transform: translateX(-50%);
-  color: white;
+  width: min(780px, calc(100% - 40px));
+  color: rgba(255, 255, 255, 0.78);
   font-size: 14px;
   font-weight: 600;
-  height: 22px;
-  line-height: 22px;
+  line-height: 1.7;
+  text-align: center;
+  pointer-events: none;
   margin: 0;
+  animation: hint-fade 8s linear forwards;
+}
+
+@keyframes hint-fade {
+  0%, 75% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 .control-preview {
@@ -114,21 +122,6 @@ a {
   padding: 7px;
   border: 1px solid white;
   pointer-events: none;
-}
-
-.door-links a {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  padding: 5px 8px;
-  background: black;
-  color: #8c8c8c;
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.door-links a:hover,
-.door-links a:focus-visible {
-  color: white;
 }
 
 .view-toggle,
@@ -252,12 +245,25 @@ a {
   margin: 0 auto;
 }
 
-.reading-kicker {
-  margin: 0 0 14px;
+.reading-navigation {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 32px;
   color: rgba(255, 255, 255, 0.54);
   font-size: 11px;
   letter-spacing: 0.12em;
-  text-transform: uppercase;
+  line-height: 1.6;
+}
+
+.reading-navigation a {
+  text-decoration: none;
+}
+
+.reading-navigation a:hover,
+.reading-navigation a:focus-visible {
+  color: #fff;
+  text-decoration: underline;
 }
 
 .reading-column h1,
@@ -367,8 +373,9 @@ a {
 }
 
 @media (max-width: 599px) {
-  .game-feedback {
-    top: 48px;
+  .game-hint {
+    top: 72px;
+    font-size: 12px;
   }
 
   .control-preview {

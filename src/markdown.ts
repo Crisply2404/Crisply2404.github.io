@@ -1,14 +1,14 @@
 import { marked } from 'marked';
 import type { CollectionKind } from './content';
 import { entriesFor } from './content';
+import { doors } from './sceneConfig';
 
-function header(title: string): string {
+function navigation(kind?: CollectionKind): string {
   return `
-    <header class="site-header">
-      <a class="site-title" href="/">Crisply2404</a>
-      <a class="content-back" href="/" aria-label="Return to corridor" title="Return to corridor">↩</a>
-    </header>
-    <p class="reading-kicker">${title}</p>
+    <nav class="reading-navigation" aria-label="阅读导航">
+      <a href="/">Crisply2404</a>
+      ${kind ? `<span aria-hidden="true">/</span><a href="/${kind}/">${kind.toUpperCase()}</a>` : ''}
+    </nav>
   `;
 }
 
@@ -28,10 +28,10 @@ export function renderCollection(kind: CollectionKind): string {
 
   return `
     <div class="site-shell">
-      ${header(kind)}
       <main class="content-root">
         <div class="reading-column">
-          <h1>${kind}</h1>
+          ${navigation()}
+          <h1>${kind.toUpperCase()}</h1>
           ${rows ? `<div class="entry-list">${rows}</div>` : '<p class="empty-state">No entries yet.</p>'}
         </div>
       </main>
@@ -44,29 +44,21 @@ export function renderArticle(kind: CollectionKind, slug: string): string {
   if (!entry) {
     return `
       <div class="site-shell">
-        ${header(kind)}
-        <main class="content-root"><div class="reading-column"><h1>Not found</h1></div></main>
+        <main class="content-root"><div class="reading-column">${navigation(kind)}<h1>Not found</h1></div></main>
       </div>
     `;
   }
 
   return `
     <div class="site-shell">
-      ${header(kind)}
       <main class="content-root">
-        <article class="reading-column">${marked.parse(entry.source)}</article>
+        <div class="reading-column">${navigation(kind)}<article>${marked.parse(entry.source)}</article></div>
       </main>
     </div>
   `;
 }
 
 export function renderListPage(): string {
-  const links = [
-    { title: 'NOTES', path: '/notes/' },
-    { title: 'ESSAYS', path: '/essays/' },
-    { title: '击鼓传字', path: '/chuan-zi/' },
-  ];
-
   return `
     <div class="site-shell">
       <header class="site-header">
@@ -75,13 +67,13 @@ export function renderListPage(): string {
       </header>
       <main class="list-root">
         <nav class="entry-list" aria-label="Site entrances">
-          ${links
+          ${doors
             .map(
               (link, index) => `
                 <a class="entry-row" href="${link.path}">
                   <span class="entry-index">${String(index + 1).padStart(2, '0')}</span>
                   <span class="entry-title">${link.title}</span>
-                  <span class="entry-path">${link.path}</span>
+                  <span class="entry-path" aria-hidden="true">↗</span>
                 </a>
               `,
             )

@@ -13,12 +13,11 @@ export const corridorStartZ = 100;
 export const doors: DoorConfig[] = [
   { id: 'notes', title: 'NOTES', path: '/notes/', side: 'left', z: -160, accent: '#ffffff' },
   { id: 'essays', title: 'ESSAYS', path: '/essays/', side: 'right', z: -400, accent: '#ffffff' },
-  { id: 'chuan-zi', title: 'CHUAN-ZI', path: '/chuan-zi/', side: 'left', z: -640, accent: '#ffffff' },
+  { id: 'chuan-zi', title: '击鼓传字', path: '/chuan-zi/', side: 'left', z: -640, accent: '#ffffff' },
 ];
 
 export const corridorEndZ = Math.min(...doors.map((door) => door.z)) - 180;
 export const spawn = new THREE.Vector3(0, 40.02, 40);
-export const checkpointPositions = [new THREE.Vector3(0, 40.02, -280), new THREE.Vector3(0, 40.02, -520)];
 
 export function doorPosition(door: DoorConfig): THREE.Vector3 { return new THREE.Vector3(door.side === 'left' ? -80 : 80, 40.02, door.z); }
 

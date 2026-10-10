@@ -3,6 +3,7 @@ import { CONFIG } from './config';
 import { buildEdges, type BlockData, type Segment } from './blocks';
 import { MonoRenderer } from './renderer';
 import exitSign from './assets/exit-sign.png';
+import transparentExitSign from './icons/exit_sign.svg';
 import font32 from './assets/font-32-0.png';
 import font64 from './assets/font-64-0.png';
 import fontMetrics from './assets/font-metrics.json';
@@ -125,6 +126,43 @@ export class VisualBuilder {
         face.rotation.y = side === 1 ? 0 : Math.PI;
         group.add(face);
       }
+    }
+    return group;
+  }
+
+  public createSiteGate(position: THREE.Vector3, angle = 0, title?: string): THREE.Group {
+    const group = new THREE.Group();
+    group.name = 'SiteGate';
+    group.position.copy(position).add(new THREE.Vector3(0, -CONFIG.playerRadius, 0));
+    group.rotation.y = angle;
+    const panel = new THREE.Mesh(new THREE.PlaneGeometry(58, 72), this.materialBlack);
+    panel.name = 'OpaqueInterior'; panel.position.y = 36;
+    group.add(panel);
+    const points = [new THREE.Vector3(-29, 0, 0), new THREE.Vector3(-29, 72, 0), new THREE.Vector3(29, 72, 0), new THREE.Vector3(29, 0, 0)];
+    group.add(this.createStroke([[points[0], points[1]], [points[1], points[2]], [points[2], points[3]]]));
+    if (title) {
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Door title canvas is unavailable');
+      const font = '600 64px "Mono Tower", "PingFang SC", "Microsoft YaHei", sans-serif';
+      context.font = font;
+      const metrics = context.measureText(title);
+      canvas.width = Math.ceil(metrics.width) + 16; canvas.height = 96;
+      context.font = font; context.fillStyle = '#fff'; context.textAlign = 'center'; context.textBaseline = 'middle';
+      context.fillText(title, canvas.width / 2, canvas.height / 2);
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.generateMipmaps = false; texture.minFilter = THREE.LinearFilter; this.textures.add(texture);
+      const label = new THREE.Mesh(new THREE.PlaneGeometry(canvas.width * 0.4, canvas.height * 0.4),
+        new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false, toneMapped: false }));
+      label.name = 'DoorTitle'; label.position.y = 98;
+      label.userData.glyphHeight = (metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent) * 0.4;
+      group.add(label);
+    } else {
+      const face = new THREE.Mesh(new THREE.PlaneGeometry(64, 32), new THREE.MeshBasicMaterial({
+        map: this.loadTexture(transparentExitSign), transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
+      }));
+      face.name = 'ExitGraphic'; face.position.y = 90;
+      group.add(face);
     }
     return group;
   }

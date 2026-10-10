@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { PhysicsEngine, PlayerState, physicsReady } from '../src/mono/physics';
 import { buildEdges, type BlockData } from '../src/mono/blocks';
 import { CONFIG, movementDirection } from '../src/mono/config';
-import { SafetyNavigationGraph } from '../src/mono/navigation';
+import { SafetyNavigationGraph, navigationForce } from '../src/mono/navigation';
 import { corridorBlocks, spawn, doors, doorPosition } from '../src/sceneConfig';
 
 await physicsReady;
@@ -63,6 +63,44 @@ test('鼠标路径只能进入完整安全地面与门前区域', () => {
   }
   const islands = new SafetyNavigationGraph([{ gx: 0, gy: 0, gz: 0, type: 'standard' }, { gx: 3, gy: 0, gz: 0, type: 'standard' }]);
   assert.equal(islands.findPath(new THREE.Vector3(0, 40.02, 0), new THREE.Vector3(120, 40.02, 0)).length, 0);
+});
+
+test('连续走廊从当前位置直接走向点击目标', () => {
+  const graph = new SafetyNavigationGraph(corridorBlocks());
+  const start = new THREE.Vector3(13, 40.02, 67);
+  const target = new THREE.Vector3(-61, 40.02, -577);
+  const path = graph.findPath(start, target);
+  assert.equal(path.length, 1);
+  assert.ok(path[0].position.equals(target));
+  assert.equal(path[0].jump, false);
+});
+
+test('复杂地形选择安全的最短行走路线', () => {
+  const blocks: BlockData[] = [];
+  for (let gx = -4; gx <= 4; gx += 1) for (let gz = -4; gz <= 4; gz += 1) {
+    if (Math.abs(gx) > 1 || Math.abs(gz) > 1) blocks.push({ gx, gy: 0, gz, type: 'standard' });
+  }
+  const graph = new SafetyNavigationGraph(blocks);
+  const start = new THREE.Vector3(-120, 40.02, 0), target = new THREE.Vector3(120, 40.02, 0);
+  const path = graph.findPath(start, target);
+  let current = start, length = 0;
+  for (const point of path) {
+    length += current.distanceTo(point.position);
+    for (let fraction = 0; fraction <= 1; fraction += 0.01) assert.ok(graph.isSafe(current.clone().lerp(point.position, fraction)));
+    current = point.position;
+  }
+  assert.ok(Math.abs(length - (160 + 2 * Math.hypot(40, 80))) < 0.01);
+  const physics = new PhysicsEngine(blocks), player = new PlayerState(); player.place(start);
+  for (const point of path) {
+    let reached = false;
+    for (let tick = 0; tick < 120; tick += 1) {
+      assert.ok(physics.step(player, navigationForce(player.pos, player.vel, point.position)));
+      assert.ok(player.pos.y > 39.9);
+      if (player.pos.distanceTo(point.position) < 0.5) { player.vel.x = player.vel.z = 0; reached = true; break; }
+    }
+    assert.ok(reached);
+  }
+  physics.dispose();
 });
 
 test('三种 WASD 映射保留原游戏方向', () => {

@@ -33,10 +33,13 @@ The walkable graph of safe floor, door approach areas, and explicitly configured
 _Avoid_: click path, auto route
 
 **MONO TOWER object model**:
-The shared vocabulary of standard blocks, spikes, strokes, gates, exit signs, checkpoints, contact markers, and player balls used by the game and the personal site.
+The reference vocabulary of standard blocks, spikes, strokes, gates, exit signs, checkpoints, contact markers, and player balls. The site's Corridor uses the configured entrances and player balls described in ADR 0004.
 _Avoid_: simplified scene, decorative object
 
 **Screen-space stroke**:
 A line that keeps the same visible width for every direction and camera rotation at a given viewing scale.
 _Avoid_: Three.js line, variable-width edge
+
+**Navigation ripple**:
+The temporary expanding ring displayed on exposed block surfaces after a reachable click in the Game view.
 

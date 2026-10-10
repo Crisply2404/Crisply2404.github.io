@@ -21,10 +21,13 @@ A configured entrance that names a site area and has a side, position, path, and
 _Avoid_: link card, portal
 
 **Door graphic**:
-A title set in Latin Modern Roman or a content symbol in the Door's plane. Notes and Essays use native complete-word layout and kerning at the same font size, with only the initial letter capitalized. Titles remain readable from either side. Symbols share their own screen-space stroke width and sit inside the frame. The drum Door uses its symbol alone.
+A title set in Mono Tower (Open Sans Semibold) or a content symbol in the Door's plane. Notes and Essays use native complete-word layout and kerning at the same font size, with only the initial letter capitalized. Titles remain readable from either side. Symbols share their own screen-space stroke width and sit inside the frame. The drum Door uses its symbol alone.
 
 **Control tutorial**:
-The temporary animated game diagrams and key or mouse symbols shown when entering the Game view. It demonstrates movement, jumping, view rotation, three control modes, and click navigation, completes repeated loops, then fades.
+The temporary animated game diagrams shown above the scene on a transparent foreground layer when entering the Game view. Objects and input symbols remain opaque. Desktop diagrams demonstrate screen-relative WASD movement, adjacent mouse navigation, jumping, view rotation and three control modes. Mobile diagrams demonstrate a one-finger tap, two-finger zoom and pan, rotation and jumping. Repeated loops finish with a fade and resource release.
+
+**View gesture**:
+Two fingers on the Game view canvas change orthographic zoom and camera position around their midpoint. Canvas gestures keep the mobile rotation and jump buttons at fixed screen positions and never generate navigation taps.
 
 **Visitor ball**:
 A temporary, uniformly styled ball representing one visitor currently in the Game view.

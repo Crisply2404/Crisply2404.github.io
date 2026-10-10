@@ -19,6 +19,7 @@ export const PHYSICS = {
 
 export const VIEWPORT = { frustumSize: 800, cameraDistance: 800, cameraHeight: 640 } as const;
 export type WasdOrientation = 0 | 1 | 2;
+export const controlModeOrder: readonly WasdOrientation[] = [0, 2, 1];
 
 export function movementDirection(x: number, y: number, angle: number, orientation: WasdOrientation): [number, number] {
   if (orientation === 2) {

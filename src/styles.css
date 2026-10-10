@@ -79,9 +79,9 @@ a {
   display: inline-flex;
   align-items: center;
   min-height: 38px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0;
   font-size: 13px;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .game-header {
@@ -97,11 +97,12 @@ a {
 
 .control-tutorial {
   position: absolute;
+  z-index: 20;
   top: 76px;
   left: 50%;
   transform: translateX(-50%);
   width: min(860px, calc(100% - 40px));
-  background: black;
+  background: transparent;
   color: white;
   pointer-events: none;
   opacity: 0;
@@ -129,10 +130,11 @@ a {
 .tutorial-input kbd {
   display: grid;
   place-items: center;
-  width: clamp(15px, 2.8vw, 24px);
-  height: clamp(15px, 2.8vw, 24px);
-  border: 1px solid rgba(255, 255, 255, 0.65);
-  border-radius: 2px;
+  width: clamp(18px, 2.8vw, 26px);
+  height: clamp(18px, 2.8vw, 26px);
+  border: 2px solid white;
+  border-radius: 0;
+  background: black;
   font: 600 clamp(9px, 1.6vw, 12px) 'Mono Tower', sans-serif;
 }
 
@@ -180,6 +182,7 @@ a {
   height: 5px;
   border: 1px solid white;
   border-radius: 50%;
+  background: black;
 }
 
 .tutorial-mouse {
@@ -189,6 +192,57 @@ a {
   overflow: hidden;
   border: 1.5px solid white;
   border-radius: 12px;
+  background: black;
+}
+
+.tutorial-input kbd img {
+  width: 58%;
+  height: 58%;
+}
+
+.tutorial-input kbd.is-active img {
+  filter: invert(1);
+}
+
+.tutorial-mobile .tutorial-inputs {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.tutorial-mobile .tutorial-canvas {
+  height: clamp(84px, 24vw, 128px);
+}
+
+.tutorial-gesture {
+  position: relative;
+  width: 70px;
+  height: 36px;
+}
+
+.tutorial-finger {
+  display: block;
+  width: 14px;
+  height: 30px;
+  border: 2px solid white;
+  border-radius: 7px 7px 3px 3px;
+  background: black;
+}
+
+.tutorial-finger::after {
+  content: '';
+  display: block;
+  margin: 7px 2px 0;
+  height: 6px;
+  border-top: 1px solid currentColor;
+}
+
+.tutorial-tap.is-active {
+  transform: translateY(4px);
+}
+
+.tutorial-gesture .tutorial-finger {
+  position: absolute;
+  left: calc(50% - 7px);
+  top: 3px;
 }
 
 .tutorial-mouse-button {
@@ -211,12 +265,11 @@ a {
 
 .control-preview {
   position: absolute;
+  z-index: 20;
   right: 20px;
   bottom: 20px;
-  background: black;
+  background: transparent;
   box-sizing: content-box;
-  padding: 7px;
-  border: 1px solid white;
   pointer-events: none;
 }
 
@@ -383,11 +436,11 @@ a {
 
 .mobile-controls {
   position: fixed;
-  inset: auto 16px 32px;
+  inset: auto max(16px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
   z-index: 6;
   display: flex;
   justify-content: space-between;
-  align-items: end;
+  align-items: center;
   pointer-events: none;
 }
 
@@ -395,27 +448,22 @@ a {
   display: none;
 }
 
-.dpad,
-.action-pad {
-  pointer-events: auto;
-}
-
-.dpad {
-  display: grid;
-  grid-template-columns: repeat(3, calc(61.333px * var(--control-scale)));
-  grid-template-rows: repeat(3, calc(61.333px * var(--control-scale)));
-  gap: calc(4px * var(--control-scale));
+.rotation-pad {
+  display: flex;
+  gap: 10px;
 }
 
 .touch-button {
   display: grid;
   place-items: center;
+  width: 48px;
+  height: 48px;
+  pointer-events: auto;
   border: 2px solid white;
   color: #fff;
   background: black;
   padding: 0;
-  font-size: max(12px, round(nearest, calc(20px * var(--control-scale)), 1px));
-  font-weight: 700;
+  font: 600 12px 'Mono Tower', sans-serif;
   transition: background 75ms linear;
   user-select: none;
   touch-action: none;
@@ -427,8 +475,8 @@ a {
 }
 
 .touch-button img {
-  width: calc((61.333333px * var(--control-scale) - 4px) * 0.4);
-  height: calc((61.333333px * var(--control-scale) - 4px) * 0.4);
+  width: 22px;
+  height: 22px;
   pointer-events: none;
 }
 
@@ -436,20 +484,8 @@ a {
   filter: invert(1);
 }
 
-.action-pad {
-  display: grid;
-  grid-template-columns: repeat(2, calc(64px * var(--control-scale)));
-  grid-template-rows: calc(64px * var(--control-scale)) calc(144px * var(--control-scale));
-  gap: calc(16px * var(--control-scale));
-}
-
-.action-pad [data-action='jump'] {
-  grid-column: 1 / 3;
-}
-
-.action-pad img {
-  width: calc((64px * var(--control-scale) - 4px) * 0.5);
-  height: calc((64px * var(--control-scale) - 4px) * 0.5);
+.mobile-controls [data-action='jump'] {
+  width: 60px;
 }
 
 @media (max-width: 599px) {
@@ -488,14 +524,13 @@ a {
   }
 
   .entry-row {
-    grid-template-columns: 42px minmax(0, 1fr);
+    grid-template-columns: 42px minmax(0, 1fr) auto;
     gap: 10px;
     min-height: 72px;
   }
 
   .entry-path {
-    grid-column: 2;
-    padding: 0 16px 12px 0;
+    padding-right: 16px;
   }
 }
 

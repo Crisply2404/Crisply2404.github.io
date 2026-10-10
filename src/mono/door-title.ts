@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 
-export const doorTitleFont = 'Latin Modern Roman';
+export const doorTitleFont = 'Mono Tower';
 let fontLoading: Promise<FontFace> | undefined;
 
 function loadFont(): Promise<FontFace> {
   if (!fontLoading) {
-    const font = new FontFace(doorTitleFont, 'url(/fonts/lmroman10-regular.otf)', { weight: '400' });
+    const font = new FontFace(doorTitleFont, 'url(/fonts/open-sans-semibold.woff2)', { weight: '600' });
     fontLoading = font.load().then((loaded) => { document.fonts.add(loaded); return loaded; });
   }
   return fontLoading;
@@ -42,7 +42,7 @@ export class DoorTitle extends THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMa
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     if (!context) throw new Error('Door titles require Canvas 2D');
-    const setFont = (): void => { context.font = `400 256px "${doorTitleFont}"`; context.fontKerning = 'normal'; };
+    const setFont = (): void => { context.font = `600 256px "${doorTitleFont}"`; context.fontKerning = 'normal'; };
     setFont();
     const metrics = context.measureText(text);
     const scale = 14 / context.measureText('H').actualBoundingBoxAscent;

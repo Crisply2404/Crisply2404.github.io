@@ -27,7 +27,7 @@ export class ControlDiagram extends THREE.Group {
 
 export class ControlPreview {
   private readonly canvas = document.createElement('canvas');
-  private readonly rendering = new MonoRenderer(this.canvas);
+  private readonly rendering = new MonoRenderer(this.canvas, true);
   private readonly builder = new VisualBuilder(this.rendering);
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 5000);
@@ -47,7 +47,7 @@ export class ControlPreview {
     this.remaining = Math.max(0, this.remaining - delta);
     this.canvas.hidden = this.remaining === 0;
     if (this.remaining === 0) return;
-    const unitsPerPixel = (sourceCamera.top - sourceCamera.bottom) / sourceHeight;
+    const unitsPerPixel = (sourceCamera.top - sourceCamera.bottom) / (sourceHeight * sourceCamera.zoom);
     const basis = new THREE.Matrix4().makeRotationFromQuaternion(sourceCamera.quaternion);
     const horizontal = new THREE.Vector3().setFromMatrixColumn(basis, 0), vertical = new THREE.Vector3().setFromMatrixColumn(basis, 1);
     const corners = 20 * (Math.abs(horizontal.x) + Math.abs(horizontal.y) + Math.abs(horizontal.z));

@@ -63,11 +63,35 @@ assert.equal(await page.locator('.tutorial-input').count(), 5);
 assert.deepEqual(await page.locator('.tutorial-wasd kbd').allTextContents(), ['W', 'A', 'S', 'D']);
 assert.equal(await page.locator('.tutorial-mouse').count(), 1);
 assert.equal(await page.locator('[data-control="mode"]').getAttribute('aria-label'), 'Tab: Switch control mode');
+assert.equal(await page.locator('[data-key="tab"]').textContent(), 'Tab');
+assert.deepEqual(await page.locator('.tutorial-input').evaluateAll((items) => items.map((item) => item.dataset.control)),
+  ['move', 'click', 'jump', 'rotate', 'mode']);
+const keyStyles = await page.locator('.tutorial-input kbd').evaluateAll((keys) => keys.map((key) => {
+  const style = getComputedStyle(key), bounds = key.getBoundingClientRect();
+  return { key: key.dataset.key, radius: style.borderRadius, border: style.borderTopWidth,
+    width: bounds.width, height: bounds.height, background: style.backgroundColor };
+}));
+for (const key of keyStyles) {
+  assert.equal(key.radius, '0px'); assert.equal(key.border, '2px');
+  if (['space', 'tab'].includes(key.key)) assert.ok(key.width > key.height);
+  else assert.equal(key.width, key.height);
+  assert.equal(key.height, keyStyles[0].height);
+}
+assert.equal(await page.evaluate(() => window.game.orientation), 2);
 const state = () => page.evaluate(() => {
   const game = window.game;
   return { x: game.player.pos.x, y: game.player.pos.y, z: game.player.pos.z, angle: game.targetCameraAngle,
     vx: game.player.vel.x, vz: game.player.vel.z, grounded: game.player.grounded, path: game.path.length };
 });
+await page.keyboard.down('w');
+await page.waitForFunction(() => window.game.player.pos.z < 30);
+assert.ok((await state()).x < -10);
+assert.ok(Math.abs((await state()).vx - (await state()).vz) < 0.02);
+await page.keyboard.up('w'); await page.keyboard.press('r');
+await page.keyboard.press('Tab');
+assert.equal(await page.evaluate(() => window.game.orientation), 1);
+await page.keyboard.press('Tab');
+assert.equal(await page.evaluate(() => window.game.orientation), 0);
 await page.keyboard.down('d');
 await page.waitForFunction(() => window.game.player.pos.z < 15);
 await page.keyboard.press('q');
@@ -124,6 +148,12 @@ await mobile.goto('http://localhost:5174/tests/game.html');
 await mobile.waitForFunction(() => window.game?.player.grounded);
 assert.equal(await mobile.evaluate(() => innerWidth), 390);
 assert.equal(await mobile.locator('.mobile-controls').isVisible(), true);
+assert.equal(await mobile.locator('.touch-button').count(), 3);
+assert.equal(await mobile.locator('.dpad').count(), 0);
+assert.equal(await mobile.locator('.tutorial-input').count(), 4);
+assert.equal(await mobile.locator('.tutorial-wasd').count(), 0);
+assert.equal(await mobile.locator('.tutorial-tap').count(), 1);
+assert.equal(await mobile.locator('.tutorial-gesture .tutorial-finger').count(), 2);
 await mobile.screenshot({ path: '.work/screenshots/mobile.png' });
 const rectangles = await mobile.locator('.touch-button').evaluateAll((buttons) => buttons.map((button) => {
   const rect = button.getBoundingClientRect();
@@ -132,29 +162,75 @@ const rectangles = await mobile.locator('.touch-button').evaluateAll((buttons) =
 for (const rect of rectangles) {
   assert.ok(rect.x >= 0 && rect.y >= 0 && rect.x + rect.width <= 390 && rect.y + rect.height <= 844);
 }
-const dpad = await mobile.locator('.dpad').boundingBox();
 const jump = await mobile.getByRole('button', { name: 'jump', exact: true }).boundingBox();
-assert.ok(dpad && jump);
+assert.ok(jump);
 const cdp = await mobile.context().newCDPSession(mobile);
-const touches = [
-  { id: 0, x: dpad.x + dpad.width / 2, y: dpad.y + 5 },
-  { id: 1, x: jump.x + jump.width / 2, y: jump.y + jump.height / 2 },
-];
-await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: touches });
-await mobile.waitForFunction(() => window.game.player.pos.y > 65 && window.game.player.pos.x < -5, undefined, { polling: 10 });
-await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...touches[0], x: dpad.x + dpad.width - 5, y: dpad.y + dpad.height / 2 }, touches[1]] });
-await mobile.waitForFunction(() => window.game.touchKeys.has('right') && !window.game.touchKeys.has('up'));
-await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...touches[0], x: dpad.x + 5, y: dpad.y + 5 }, touches[1]] });
-await mobile.waitForFunction(() => window.game.touchKeys.has('left') && window.game.touchKeys.has('up'));
-assert.equal(await mobile.locator('.dpad .is-active').count(), 1);
-assert.equal(await mobile.locator('.dpad [data-action="up-left"]').getAttribute('class'), 'touch-button is-active');
+const projectMobile = (x, z) => mobile.evaluate(({ x, z }) => {
+  const point = window.game.player.pos.clone().set(x, 20, z).project(window.game.camera);
+  return { x: (point.x + 1) * innerWidth / 2, y: (1 - point.y) * innerHeight / 2 };
+}, { x, z });
+const destination = await projectMobile(0, -80);
+await mobile.touchscreen.tap(destination.x, destination.y);
+await mobile.waitForFunction(() => window.game.path.length === 0 && Math.abs(window.game.player.pos.z + 80) < 1);
+const viewBefore = await mobile.evaluate(() => ({ zoom: window.game.camera.zoom, offset: window.game.viewOffset.toArray() }));
+let fingers = [{ id: 0, x: 130, y: 450 }, { id: 1, x: 250, y: 450 }];
+await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: fingers });
+fingers = [{ id: 0, x: 80, y: 450 }, { id: 1, x: 300, y: 450 }];
+await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: fingers });
+await mobile.waitForFunction(() => window.game.camera.zoom > 1.7);
+fingers = fingers.map((finger) => ({ ...finger, x: finger.x + 30, y: finger.y - 25 }));
+await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: fingers });
+await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [fingers[0]] });
 await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-await mobile.waitForFunction(() => window.game.touchKeys.size === 0 && !window.game.jumpPressed);
+const viewAfter = await mobile.evaluate(() => ({ zoom: window.game.camera.zoom, offset: window.game.viewOffset.toArray(),
+  path: window.game.path.length, position: window.game.player.pos.toArray() }));
+assert.ok(viewAfter.zoom > viewBefore.zoom);
+assert.notDeepEqual(viewAfter.offset, viewBefore.offset);
+assert.equal(viewAfter.path, 0); assert.ok(Math.abs(viewAfter.position[2] + 80) < 1);
+assert.deepEqual(await mobile.locator('.touch-button').evaluateAll((buttons) => buttons.map((button) => {
+  const { x, y, width, height } = button.getBoundingClientRect(); return { x, y, width, height };
+})), rectangles);
+const nextDestination = await projectMobile(0, -110);
+await mobile.touchscreen.tap(nextDestination.x, nextDestination.y);
+await mobile.waitForFunction(() => window.game.path.length === 0 && Math.abs(window.game.player.pos.z + 110) < 1);
+const jumpTouch = { id: 2, x: jump.x + jump.width / 2, y: jump.y + jump.height / 2 };
+await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [jumpTouch] });
+await mobile.waitForFunction(() => window.game.player.pos.y > 65 && window.game.jumpPressed, undefined, { polling: 10 });
+await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [...fingers, jumpTouch] });
+fingers = fingers.map((finger) => ({ ...finger, x: finger.x - 15, y: finger.y + 10 }));
+await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [...fingers, jumpTouch] });
+assert.equal(await mobile.evaluate(() => window.game.jumpPressed), true);
+assert.equal(await mobile.evaluate(() => window.game.path.length), 0);
+await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+await mobile.waitForFunction(() => !window.game.jumpPressed && window.game.canvasNavigation.pointers.size === 0);
+assert.equal(await mobile.locator('.touch-button.is-active').count(), 0);
+await mobile.waitForFunction(() => window.game.player.grounded);
+const rotationBefore = await mobile.evaluate(() => window.game.targetCameraAngle);
+const rotate = await mobile.getByRole('button', { name: 'rotateLeft', exact: true }).boundingBox();
+await mobile.touchscreen.tap(rotate.x + rotate.width / 2, rotate.y + rotate.height / 2);
+assert.equal(await mobile.evaluate(() => window.game.targetCameraAngle), rotationBefore + Math.PI / 2);
+assert.equal(await mobile.evaluate(() => window.game.path.length), 0);
+assert.equal(await mobile.locator('.touch-button.is-active').count(), 0);
+const dragStart = await projectMobile(0, -140);
+await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ id: 0, ...dragStart }] });
+await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ id: 0, x: dragStart.x + 25, y: dragStart.y }] });
+await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+assert.equal(await mobile.evaluate(() => window.game.path.length), 0);
 assert.deepEqual(errors, []);
-console.log('手机双指移动与跳跃、滑动切换和输入释放检查通过。');
+console.log('手机单指寻路、双指缩放与平移、独立按钮和取消释放检查通过。');
 await mobile.goto('http://localhost:5174/');
 await mobile.getByRole('button', { name: 'Switch to list view' }).click();
 const mobileTitle = await siteTitleBounds(mobile);
+assert.equal(await mobile.locator('.site-title').evaluate((element) => getComputedStyle(element).textTransform), 'none');
+assert.equal(await mobile.locator('.site-title').textContent(), 'Crisply2404');
+await mobile.locator('.entry-row').evaluateAll((rows) => {
+  for (const row of rows) {
+    const children = [...row.children].map((child) => child.getBoundingClientRect());
+    const center = children[0].y + children[0].height / 2;
+    if (children.some((child) => Math.abs(child.y + child.height / 2 - center) > 1)) throw new Error('Mobile entrance row must remain on one line');
+    if (row.scrollWidth > row.clientWidth) throw new Error('Mobile entrance row overflows');
+  }
+});
 for (const collection of ['notes', 'essays']) {
   await mobile.goto(`http://localhost:5174/${collection}/`);
   const title = await siteTitleBounds(mobile);
@@ -162,13 +238,15 @@ for (const collection of ['notes', 'essays']) {
 }
 console.log('桌面与手机列表页、notes 和 essays 的站点名称坐标检查通过。');
 for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }, { width: 320, height: 568 }, { width: 844, height: 390 }]) {
-  const tutorial = await browser.newPage({ viewport });
+  for (const hasTouch of [false, true]) {
+  const tutorial = await browser.newPage({ viewport, hasTouch, isMobile: hasTouch });
   tutorial.on('pageerror', (error) => errors.push(error.message));
   await tutorial.goto('http://localhost:5174/tests/tutorial.html');
   await tutorial.waitForFunction(() => typeof window.runTutorialChecks === 'function');
   const result = await tutorial.evaluate(() => window.runTutorialChecks());
-  console.log(JSON.stringify({ viewport, tutorial: result }));
+  console.log(JSON.stringify({ viewport, hasTouch, tutorial: result }));
   await tutorial.close();
+  }
 }
 for (const deviceScaleFactor of [2, 3]) {
   const dense = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor });

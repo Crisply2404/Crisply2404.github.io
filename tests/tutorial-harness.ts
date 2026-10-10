@@ -15,7 +15,11 @@ function runTutorialChecks(): Record<string, unknown> {
   tutorial.update(1 / 30);
   const canvas = root.querySelector<HTMLCanvasElement>('canvas')!;
   const gl = canvas.getContext('webgl2')!;
-  const frames = Array.from({ length: 5 }, () => new Set<number>());
+  const mobile = matchMedia('(pointer: coarse)').matches;
+  const columns = mobile ? 4 : 5;
+  const frames = Array.from({ length: columns }, () => new Set<number>());
+  const fingerFrames = new Set<string>();
+  const taps = new Set<boolean>();
   const modes = new Set<number>();
   const moveKeys = new Set<string>();
   let checks = 0;
@@ -23,11 +27,21 @@ function runTutorialChecks(): Record<string, unknown> {
     tutorial.update(1 / 60);
     if (tick % 6 !== 0) continue;
     modes.add([...root.querySelectorAll('.tutorial-modes i')].findIndex((dot) => dot.classList.contains('is-active')));
+    fingerFrames.add([...root.querySelectorAll<HTMLElement>('.tutorial-gesture .tutorial-finger')]
+      .map((finger) => finger.style.transform).join(','));
+    taps.add(root.querySelector('.tutorial-tap')?.classList.contains('is-active') ?? false);
     for (const key of root.querySelectorAll<HTMLElement>('.tutorial-wasd .is-active')) moveKeys.add(key.dataset.key!);
     const data = new Uint8Array(canvas.width * canvas.height * 4);
     gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, data);
-    for (let column = 0; column < 5; column += 1) {
-      const left = Math.round(column * canvas.width / 5), right = Math.round((column + 1) * canvas.width / 5);
+    let transparent = 0, opaqueBlack = 0;
+    for (let index = 0; index < data.length; index += 4) {
+      if (data[index + 3] === 0) transparent += 1;
+      if (data[index + 3] === 255 && data[index] === 0) opaqueBlack += 1;
+    }
+    check(transparent > canvas.width * canvas.height / 2 && opaqueBlack > 20,
+      `Tutorial requires transparent space and opaque black surfaces: ${transparent}, ${opaqueBlack}`); checks += 1;
+    for (let column = 0; column < columns; column += 1) {
+      const left = Math.round(column * canvas.width / columns), right = Math.round((column + 1) * canvas.width / columns);
       let hash = 2166136261, pixels = 0;
       for (let y = 0; y < canvas.height; y += 1) for (let x = left; x < right; x += 1) {
         const value = data[(y * canvas.width + x) * 4];
@@ -42,16 +56,21 @@ function runTutorialChecks(): Record<string, unknown> {
       frames[column].add(hash);
     }
   }
-  check(modes.size === 3 && !modes.has(-1), 'Tutorial must cycle through three control modes'); checks += 1;
-  check(moveKeys.size === 4, 'Tutorial must animate all WASD keys'); checks += 1;
-  check(frames.every((samples, index) => samples.size >= (index === 3 ? 3 : 4)),
+  if (mobile) {
+    check(fingerFrames.size > 20 && taps.size === 2, 'Mobile tutorial must animate tap, pinch and pan'); checks += 1;
+  } else {
+    check(modes.size === 3 && !modes.has(-1), 'Tutorial must cycle through three control modes'); checks += 1;
+    check(moveKeys.size === 4, 'Tutorial must animate all WASD keys'); checks += 1;
+  }
+  check(frames.every((samples, index) => samples.size >= (!mobile && index === 4 ? 3 : 4)),
     `Each control requires an animated game diagram: ${frames.map((samples) => samples.size).join(', ')}`); checks += 1;
   const opacity = Number(root.querySelector<HTMLElement>('.control-tutorial')!.style.opacity);
   check(opacity > 0.45 && opacity < 0.55, 'Tutorial must fade after its complete loops'); checks += 1;
   tutorial.update(1.1);
   check(root.querySelector('.control-tutorial') === null, 'Tutorial must release its elements after fading'); checks += 1;
   tutorial.update(1); tutorial.dispose();
-  return { checks, modes: [...modes], moveKeys: [...moveKeys], frames: frames.map((samples) => samples.size) };
+  return { checks, mobile, modes: [...modes], moveKeys: [...moveKeys], fingerFrames: fingerFrames.size,
+    frames: frames.map((samples) => samples.size) };
 }
 
 Object.assign(window, { runTutorialChecks });

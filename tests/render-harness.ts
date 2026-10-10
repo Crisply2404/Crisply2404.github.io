@@ -213,14 +213,15 @@ async function runSiteChecks(): Promise<Record<string, unknown>> {
           'Door title must share the door plane'); checks += 1;
         const font = (title!.material as THREE.MeshBasicMaterial).map;
         const expectedTitle = door.graphics === 'notes' ? 'Notes' : 'Essays';
-        check(font?.name === `${doorTitleFont}: ${expectedTitle}` && document.fonts.check(`256px "${doorTitleFont}"`),
+        check(font?.name === `${doorTitleFont}: ${expectedTitle}` && document.fonts.check(`600 256px "${doorTitleFont}"`),
           'Door title font or capitalization is incorrect'); checks += 1;
         check(positions.count === 4 && font!.image instanceof HTMLCanvasElement,
           'Door titles must preserve complete-word font layout'); checks += 1;
         const textContext = (font!.image as HTMLCanvasElement).getContext('2d')!;
         const capitalHeight = textContext.measureText('H').actualBoundingBoxAscent
           * (titleBounds.max.y - titleBounds.min.y) / font!.image.height;
-        check(Math.abs(capitalHeight - 14) < 0.001 && textContext.fontKerning === 'normal',
+        check(Math.abs(capitalHeight - 14) < 0.001 && textContext.fontKerning === 'normal'
+          && textContext.font === '600 256px "Mono Tower"' && textContext.letterSpacing === '0px',
           'Door titles require a shared font size and native kerning'); checks += 1;
         check(configuredGate.children.filter((child) => child.name === 'DoorTitle').length === 1,
           'Door title has duplicate faces'); checks += 1;

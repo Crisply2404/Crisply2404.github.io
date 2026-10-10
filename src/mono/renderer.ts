@@ -32,8 +32,8 @@ export class MonoRenderer {
   private readonly copyScene = new THREE.Scene();
   private readonly copyCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
-  public constructor(canvas: HTMLCanvasElement) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  public constructor(canvas: HTMLCanvasElement, transparent = false) {
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: transparent });
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setClearColor(0x000000, 1);
     this.renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
@@ -59,9 +59,19 @@ export class MonoRenderer {
     });
     this.doorSymbol.defines = { DOOR_SYMBOL: 1 };
     const copyMaterial = new THREE.ShaderMaterial({
-      uniforms: { image: { value: this.target.texture } },
+      uniforms: { image: { value: this.target.texture }, surface_depth: { value: this.target.depthTexture } },
+      defines: transparent ? { TRANSPARENT_BACKGROUND: 1 } : {},
       vertexShader: 'varying vec2 screen_uv; void main() { screen_uv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
-      fragmentShader: 'uniform sampler2D image; varying vec2 screen_uv; void main() { gl_FragColor = vec4(texture2D(image, screen_uv).rgb, 1.0); }',
+      fragmentShader: `uniform sampler2D image;
+        uniform sampler2D surface_depth;
+        varying vec2 screen_uv;
+        void main() {
+          float alpha = 1.0;
+          #ifdef TRANSPARENT_BACKGROUND
+            alpha = texture2D(surface_depth, screen_uv).r < 1.0 ? 1.0 : 0.0;
+          #endif
+          gl_FragColor = vec4(texture2D(image, screen_uv).rgb, alpha);
+        }`,
       depthTest: false,
       depthWrite: false,
     });

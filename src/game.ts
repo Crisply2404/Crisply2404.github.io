@@ -144,7 +144,7 @@ export class GameScene {
     if (!hit || !hit.face || hit.face.normal.y < 0.99) return;
     const target = hit.point.clone();
     target.y += playerRadius + 0.02;
-    const path = this.navigation.findPath(this.player.pos.clone().setY(target.y), target);
+    const path = this.navigation.findPath(this.player.pos.clone(), target);
     if (path.length) { this.path = path; this.ripple.show(hit.point); }
   };
 

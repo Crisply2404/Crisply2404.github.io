@@ -114,6 +114,10 @@ test('跳跃连接通过真实物理路径检查，危险节点不进入导航�
   const from = new THREE.Vector3(0, 40.02, 0), to = new THREE.Vector3(80, 40.02, 0);
   const graph = new SafetyNavigationGraph(blocks, [{ from, to }]);
   const path = graph.findPath(from, to); assert.ok(path.some((point) => point.jump));
+  const raised = [{ ...blocks[0] }, { ...blocks[1], gy: 1 }];
+  const high = new THREE.Vector3(80, 80.02, 0);
+  const rising = new SafetyNavigationGraph(raised, [{ from, to: high }]);
+  assert.ok(rising.findPath(new THREE.Vector3(0, 40.01, 0), high).some((point) => point.jump));
   assert.throws(() => new SafetyNavigationGraph([{ ...blocks[0] }, { ...blocks[1], gx: 20 }], [{ from, to: new THREE.Vector3(800, 40.02, 0) }]), /no safe physical trajectory/);
   const hazardous = new SafetyNavigationGraph([...blocks, { gx: 0, gy: 1, gz: 0, type: 'spike' }]);
   assert.equal(hazardous.isSafe(from), false);

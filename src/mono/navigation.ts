@@ -39,9 +39,9 @@ export class SafetyNavigationGraph {
       else this.nodes.delete(id);
     }
     for (const connection of jumps) {
-      const from = connection.from.toArray().join(':');
-      const to = connection.to.toArray().join(':');
-      if (!this.nodes.has(from) || !this.nodes.has(to) || !this.isSafe(connection.from) || !this.isSafe(connection.to)) {
+      const from = [...this.nodes].find(([, position]) => position.distanceTo(connection.from) < 0.1)?.[0];
+      const to = [...this.nodes].find(([, position]) => position.distanceTo(connection.to) < 0.1)?.[0];
+      if (!from || !to || !this.isSafe(connection.from) || !this.isSafe(connection.to)) {
         throw new Error('Jump connection requires safe endpoints');
       }
       const physics = new PhysicsEngine(blocks);

@@ -148,48 +148,62 @@ async function runSiteChecks(): Promise<Record<string, unknown>> {
   camera.left = -640; camera.right = 640; camera.top = 400; camera.bottom = -400; camera.updateProjectionMatrix();
   camera.position.set(0, 640, 800); camera.lookAt(0, 0, 0); camera.updateMatrixWorld();
   let checks = 0;
+  for (const door of doors) for (const side of [0, Math.PI]) {
+    scene.clear();
+    const gate = builder.createSiteGate(new THREE.Vector3(0, 20, 0), 0, doorGraphics[door.graphics]);
+    gate.quaternion.copy(camera.quaternion).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), side));
+    scene.add(gate); await builder.ready();
+    const baseline = capture();
+    const rearLine = builder.createStroke([[
+      new THREE.Vector3(-20, 36, -40).applyQuaternion(camera.quaternion),
+      new THREE.Vector3(20, 36, -40).applyQuaternion(camera.quaternion),
+    ]]);
+    scene.add(rearLine);
+    const occluded = capture();
+    check(baseline.data.every((value, index) => value === occluded.data[index]),
+      'Door interior failed to hide background line'); checks += 1;
+    scene.remove(rearLine);
+    const player = builder.createPlayerMesh();
+    player.quaternion.copy(camera.quaternion);
+    player.position.copy(new THREE.Vector3(0, 36, -40).applyQuaternion(camera.quaternion)); scene.add(player);
+    const hiddenPlayer = capture();
+    check(baseline.data.every((value, index) => value === hiddenPlayer.data[index]),
+      `${door.id} interior failed to hide the rear ball on side ${side}`); checks += 1;
+    player.position.copy(new THREE.Vector3(22, 36, -40).applyQuaternion(camera.quaternion));
+    const partial = capture();
+    const edge = project(new THREE.Vector3(29, 36, 0).applyQuaternion(camera.quaternion));
+    let exposedPixels = 0;
+    for (let y = 0; y < partial.height; y += 1) for (let x = 0; x < partial.width; x += 1) {
+      const index = (y * partial.width + x) * 4;
+      if (x + 0.5 < edge.x - devicePixelRatio * 3) {
+        check(partial.data[index] === baseline.data[index], 'Door interior leaked the partially hidden ball');
+      } else if (x + 0.5 > edge.x + devicePixelRatio * 3 && partial.data[index] > baseline.data[index] + 32) exposedPixels += 1;
+    }
+    check(exposedPixels > 10 * devicePixelRatio, 'Exposed part of the ball disappeared'); checks += 1;
+    player.position.copy(new THREE.Vector3(0, 36, 40).applyQuaternion(camera.quaternion));
+    scene.remove(gate); const playerOnly = capture();
+    scene.add(gate); const front = capture();
+    const center = project(player.position), radius = 19 * devicePixelRatio;
+    const mismatch = playerOnly.data.findIndex((value, index) => {
+      const point = Math.floor(index / 4), x = point % playerOnly.width + 0.5 - center.x;
+      const y = Math.floor(point / playerOnly.width) + 0.5 - center.y;
+      return x * x + y * y < radius * radius && value !== front.data[index];
+    });
+    check(mismatch === -1, `The foreground ball must hide the ${door.id} graphic on side ${side}; pixel ${mismatch}, values ${playerOnly.data[mismatch]}, ${front.data[mismatch]}, center ${center.toArray()}`); checks += 1;
+    for (let angle = 0; angle < 64; angle += 1) {
+      const point = center.clone().add(new THREE.Vector2(Math.cos(angle * Math.PI / 32), Math.sin(angle * Math.PI / 32))
+        .multiplyScalar(20 * devicePixelRatio));
+      check(brightness(front, point, devicePixelRatio) > 0.2, 'The foreground ball outline is missing');
+    }
+    checks += 1;
+  }
   scene.clear();
-  const gate = builder.createSiteGate(new THREE.Vector3(0, 20, 0), 0, doorGraphics[doors[2].graphics]);
-  gate.quaternion.copy(camera.quaternion); scene.add(gate);
-  const baseline = capture();
-  const rearLine = builder.createStroke([[
-    new THREE.Vector3(-20, 36, -40).applyQuaternion(camera.quaternion),
-    new THREE.Vector3(20, 36, -40).applyQuaternion(camera.quaternion),
-  ]]);
-  scene.add(rearLine);
-  const occluded = capture();
-  check(baseline.data.every((value, index) => value === occluded.data[index]), 'Door interior failed to hide background line'); checks += 1;
-  scene.remove(rearLine);
-  const player = builder.createPlayerMesh();
-  player.position.copy(new THREE.Vector3(0, 36, -40).applyQuaternion(camera.quaternion));
-  scene.add(player);
-  const throughDoor = capture();
-  const playerCenter = project(player.position);
-  check(brightness(throughDoor, playerCenter.clone().add(new THREE.Vector2(20 * devicePixelRatio, 0)), 1) > 0.2,
-    'Door interior hid the player behind it'); checks += 1;
-  const blocker = new THREE.Mesh(new THREE.BoxGeometry(100, 100, 10), builder.materialBlack);
-  blocker.position.copy(new THREE.Vector3(0, 36, -10).applyQuaternion(camera.quaternion));
-  blocker.quaternion.copy(camera.quaternion);
-  scene.add(blocker);
-  const blockedPlayer = capture();
-  scene.remove(player);
-  const withoutPlayer = capture();
-  check(blockedPlayer.data.every((value, index) => value === withoutPlayer.data[index]),
-    'Scene geometry failed to hide the player through the door'); checks += 1;
-  scene.remove(blocker); scene.add(player);
-  scene.remove(gate);
-  const playerOnly = capture();
-  scene.add(gate);
-  gate.getObjectByName('WhiteEdges')!.visible = false;
-  const coveredSymbol = capture();
-  const playerSampleRadius = 19 * devicePixelRatio;
-  check(playerOnly.data.every((value, index) => {
-    const point = Math.floor(index / 4);
-    const x = point % playerOnly.width + 0.5 - playerCenter.x;
-    const y = Math.floor(point / playerOnly.width) + 0.5 - playerCenter.y;
-    return x * x + y * y >= playerSampleRadius * playerSampleRadius || value === coveredSymbol.data[index];
-  }),
-    'Door symbol covered the player behind the door'); checks += 1;
+  const exitWithBall = builder.createSiteGate(new THREE.Vector3(0, 20, 0));
+  exitWithBall.quaternion.copy(camera.quaternion); scene.add(exitWithBall); await builder.ready();
+  const exitBall = builder.createPlayerMesh(); exitBall.quaternion.copy(camera.quaternion);
+  exitBall.position.copy(new THREE.Vector3(0, 36, -40).applyQuaternion(camera.quaternion)); scene.add(exitBall);
+  check(brightness(capture(), project(exitBall.position).add(new THREE.Vector2(20 * devicePixelRatio, 0)), 1) > 0.2,
+    'Exit ball visibility is incorrect'); checks += 1;
   const graphicWidths: number[] = [];
   for (let view = 0; view < 4; view += 1) {
     const angle = Math.PI / 4 + view * Math.PI / 2;
@@ -213,15 +227,17 @@ async function runSiteChecks(): Promise<Record<string, unknown>> {
           'Door title must share the door plane'); checks += 1;
         const font = (title!.material as THREE.MeshBasicMaterial).map;
         const expectedTitle = door.graphics === 'notes' ? 'Notes' : 'Essays';
-        check(font?.name === `${doorTitleFont}: ${expectedTitle}` && document.fonts.check(`600 256px "${doorTitleFont}"`),
+        check(font?.name === `${doorTitleFont()}: ${expectedTitle}` && document.fonts.check(`400 256px ${doorTitleFont()}`),
           'Door title font or capitalization is incorrect'); checks += 1;
         check(positions.count === 4 && font!.image instanceof HTMLCanvasElement,
           'Door titles must preserve complete-word font layout'); checks += 1;
         const textContext = (font!.image as HTMLCanvasElement).getContext('2d')!;
         const capitalHeight = textContext.measureText('H').actualBoundingBoxAscent
           * (titleBounds.max.y - titleBounds.min.y) / font!.image.height;
+        const titleFont = document.createElement('canvas').getContext('2d')!;
+        titleFont.font = `400 256px ${getComputedStyle(document.documentElement).fontFamily}`;
         check(Math.abs(capitalHeight - 14) < 0.001 && textContext.fontKerning === 'normal'
-          && textContext.font === '600 256px "Mono Tower"' && textContext.letterSpacing === '0px',
+          && textContext.font === titleFont.font && textContext.letterSpacing === '0px',
           'Door titles require a shared font size and native kerning'); checks += 1;
         check(configuredGate.children.filter((child) => child.name === 'DoorTitle').length === 1,
           'Door title has duplicate faces'); checks += 1;

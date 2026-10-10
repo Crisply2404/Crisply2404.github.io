@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { chromium } from '@playwright/test';
+import { PNG } from 'pngjs';
 
 async function siteTitleBounds(page) {
   return page.locator('.site-title').evaluate((element) => {
@@ -72,11 +73,18 @@ const keyStyles = await page.locator('.tutorial-input kbd').evaluateAll((keys) =
     width: bounds.width, height: bounds.height, background: style.backgroundColor };
 }));
 for (const key of keyStyles) {
-  assert.equal(key.radius, '0px'); assert.equal(key.border, '2px');
+  assert.equal(key.radius, '0px'); assert.equal(key.border, '1px');
   if (['space', 'tab'].includes(key.key)) assert.ok(key.width > key.height);
   else assert.equal(key.width, key.height);
   assert.equal(key.height, keyStyles[0].height);
 }
+await page.locator('.tutorial-input kbd').evaluateAll((keys) => {
+  const family = getComputedStyle(document.documentElement).fontFamily;
+  for (const key of keys) {
+    const style = getComputedStyle(key);
+    if (style.fontFamily !== family || style.fontWeight !== '400') throw new Error('Tutorial keys must use the site title font');
+  }
+});
 assert.equal(await page.evaluate(() => window.game.orientation), 2);
 const state = () => page.evaluate(() => {
   const game = window.game;
@@ -154,6 +162,18 @@ assert.equal(await mobile.locator('.tutorial-input').count(), 4);
 assert.equal(await mobile.locator('.tutorial-wasd').count(), 0);
 assert.equal(await mobile.locator('.tutorial-tap').count(), 1);
 assert.equal(await mobile.locator('.tutorial-gesture .tutorial-finger').count(), 2);
+await mobile.locator('.tutorial-input kbd, .touch-button').evaluateAll((keys) => {
+  const family = getComputedStyle(document.documentElement).fontFamily;
+  for (const key of keys) {
+    const style = getComputedStyle(key);
+    if (style.borderTopWidth !== '1px' || style.fontFamily !== family || style.fontWeight !== '400') {
+      throw new Error('Mobile keys must have 1px borders and the site title font');
+    }
+    if (key.tagName === 'BUTTON' && style.webkitTapHighlightColor !== 'rgba(0, 0, 0, 0)') {
+      throw new Error('Mobile button tap highlight must be transparent');
+    }
+  }
+});
 await mobile.screenshot({ path: '.work/screenshots/mobile.png' });
 const rectangles = await mobile.locator('.touch-button').evaluateAll((buttons) => buttons.map((button) => {
   const rect = button.getBoundingClientRect();
@@ -196,6 +216,13 @@ await mobile.waitForFunction(() => window.game.path.length === 0 && Math.abs(win
 const jumpTouch = { id: 2, x: jump.x + jump.width / 2, y: jump.y + jump.height / 2 };
 await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [jumpTouch] });
 await mobile.waitForFunction(() => window.game.player.pos.y > 65 && window.game.jumpPressed, undefined, { polling: 10 });
+await mobile.waitForFunction(() => getComputedStyle(document.querySelector('.touch-button[data-action="jump"]')).backgroundColor === 'rgb(255, 255, 255)');
+assert.equal(await mobile.locator('.touch-button[data-action="jump"]').evaluate((button) => getComputedStyle(button).webkitTapHighlightColor), 'rgba(0, 0, 0, 0)');
+const pressedButton = PNG.sync.read(await mobile.locator('.touch-button[data-action="jump"]').screenshot());
+for (let index = 0; index < pressedButton.data.length; index += 4) {
+  assert.equal(pressedButton.data[index], pressedButton.data[index + 1], 'Pressed mobile button contains colored pixels');
+  assert.equal(pressedButton.data[index], pressedButton.data[index + 2], 'Pressed mobile button contains colored pixels');
+}
 await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [...fingers, jumpTouch] });
 fingers = fingers.map((finger) => ({ ...finger, x: finger.x - 15, y: finger.y + 10 }));
 await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [...fingers, jumpTouch] });

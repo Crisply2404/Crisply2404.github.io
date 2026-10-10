@@ -7,9 +7,10 @@
 }
 
 :root {
+  --site-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', 'Helvetica Neue', Arial, sans-serif;
   color: #f5f5f5;
   background: #000;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans', 'Helvetica Neue', Arial, sans-serif;
+  font-family: var(--site-font-family);
   font-synthesis: none;
   text-rendering: geometricPrecision;
 }
@@ -37,6 +38,7 @@ button,
 a {
   color: inherit;
   font: inherit;
+  -webkit-tap-highlight-color: transparent;
 }
 
 button {
@@ -132,10 +134,10 @@ a {
   place-items: center;
   width: clamp(18px, 2.8vw, 26px);
   height: clamp(18px, 2.8vw, 26px);
-  border: 2px solid white;
+  border: 1px solid white;
   border-radius: 0;
   background: black;
-  font: 600 clamp(9px, 1.6vw, 12px) 'Mono Tower', sans-serif;
+  font: 400 clamp(9px, 1.6vw, 12px) var(--site-font-family);
 }
 
 .tutorial-input .is-active {
@@ -459,11 +461,11 @@ a {
   width: 48px;
   height: 48px;
   pointer-events: auto;
-  border: 2px solid white;
+  border: 1px solid white;
   color: #fff;
   background: black;
   padding: 0;
-  font: 600 12px 'Mono Tower', sans-serif;
+  font: 400 12px var(--site-font-family);
   transition: background 75ms linear;
   user-select: none;
   touch-action: none;

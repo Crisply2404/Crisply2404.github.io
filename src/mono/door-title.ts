@@ -1,15 +1,6 @@
 import * as THREE from 'three';
 
-export const doorTitleFont = 'Mono Tower';
-let fontLoading: Promise<FontFace> | undefined;
-
-function loadFont(): Promise<FontFace> {
-  if (!fontLoading) {
-    const font = new FontFace(doorTitleFont, 'url(/fonts/open-sans-semibold.woff2)', { weight: '600' });
-    fontLoading = font.load().then((loaded) => { document.fonts.add(loaded); return loaded; });
-  }
-  return fontLoading;
-}
+export function doorTitleFont(): string { return getComputedStyle(document.documentElement).fontFamily; }
 
 export class DoorTitle extends THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial> {
   public readonly loaded: Promise<void>;
@@ -37,12 +28,13 @@ export class DoorTitle extends THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMa
   }
 
   private async load(text: string): Promise<void> {
-    await loadFont();
+    const fontFamily = doorTitleFont();
+    await document.fonts.load(`400 256px ${fontFamily}`, text);
     if (this.disposed) return;
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     if (!context) throw new Error('Door titles require Canvas 2D');
-    const setFont = (): void => { context.font = `600 256px "${doorTitleFont}"`; context.fontKerning = 'normal'; };
+    const setFont = (): void => { context.font = `400 256px ${fontFamily}`; context.fontKerning = 'normal'; };
     setFont();
     const metrics = context.measureText(text);
     const scale = 14 / context.measureText('H').actualBoundingBoxAscent;
@@ -52,7 +44,7 @@ export class DoorTitle extends THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMa
     setFont(); context.fillStyle = '#fff';
     context.fillText(text, padding + metrics.actualBoundingBoxLeft, padding + metrics.actualBoundingBoxAscent);
     const texture = new THREE.CanvasTexture(canvas);
-    texture.name = `${doorTitleFont}: ${text}`;
+    texture.name = `${fontFamily}: ${text}`;
     texture.colorSpace = THREE.SRGBColorSpace;
     this.geometry.dispose();
     this.geometry = new THREE.PlaneGeometry(canvas.width * scale, canvas.height * scale);

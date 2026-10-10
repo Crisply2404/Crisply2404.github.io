@@ -180,7 +180,6 @@ async function runSiteChecks(): Promise<Record<string, unknown>> {
   const playerOnly = capture();
   scene.add(gate);
   gate.getObjectByName('WhiteEdges')!.visible = false;
-  gate.getObjectByName('DoorTitle')!.visible = false;
   const coveredSymbol = capture();
   const playerSampleRadius = 19 * devicePixelRatio;
   check(playerOnly.data.every((value, index) => {
@@ -199,19 +198,42 @@ async function runSiteChecks(): Promise<Record<string, unknown>> {
       scene.clear();
       const configuredGate = builder.createSiteGate(new THREE.Vector3(0, 20, 0), Math.PI / 2, doorGraphics[door.graphics]);
       scene.add(configuredGate); scene.updateMatrixWorld(true);
-      const title = configuredGate.getObjectByName('DoorTitle') as THREE.Mesh;
+      const title = configuredGate.getObjectByName('DoorTitle') as THREE.Mesh | undefined;
       const symbol = configuredGate.getObjectByName('DoorSymbol') as THREE.Mesh;
-      const titleBounds = new THREE.Box3().setFromBufferAttribute(title.geometry.getAttribute('position') as THREE.BufferAttribute);
-      check(titleBounds.min.y + title.position.y >= 84 - 0.001, 'Door title overlaps the frame'); checks += 1;
-      check(title.quaternion.equals(new THREE.Quaternion()) && titleBounds.min.z === 0 && titleBounds.max.z === 0,
-        'Door title must share the door plane'); checks += 1;
+      if (door.graphics === 'chuan-zi') {
+        check(title === undefined, 'The drum door must use only its symbol'); checks += 1;
+      } else {
+        check(title !== undefined, 'Writing door title is missing'); checks += 1;
+        const positions = title!.geometry.getAttribute('position');
+        const titleBounds = new THREE.Box3().setFromBufferAttribute(positions as THREE.BufferAttribute);
+        check(titleBounds.min.y + title!.position.y >= 84 - 0.001, 'Door title overlaps the frame'); checks += 1;
+        check(title!.quaternion.equals(new THREE.Quaternion()) && titleBounds.min.z === 0 && titleBounds.max.z === 0,
+          'Door title must share the door plane'); checks += 1;
+        check(Math.abs(titleBounds.max.y - titleBounds.min.y - 14) < 0.001, 'Door title height is inconsistent'); checks += 1;
+        const gaps = [];
+        for (let index = 6; index < positions.count; index += 6) gaps.push(positions.getX(index) - positions.getX(index - 4));
+        check(gaps.every((gap) => Math.abs(gap - gaps[0]) < 0.00001 && gap > 0), 'Font glyph spacing is uneven'); checks += 1;
+        const font = (title!.material as THREE.MeshBasicMaterial).map;
+        check(font?.image?.src.includes('font-64-0') && title!.geometry.getAttribute('cap') === undefined,
+          'Door titles must use the existing font atlas'); checks += 1;
+        check(configuredGate.children.filter((child) => child.name === 'DoorTitle').length === 1,
+          'Door title has duplicate faces'); checks += 1;
+      }
       const doorImage = capture();
       check(doorImage.data.some((value, index) => index % 4 === 0 && value > 128), 'Configured door is invisible'); checks += 1;
+      if (title) {
+        const cameraInGate = configuredGate.worldToLocal(camera.position.clone());
+        check(title.scale.x === (cameraInGate.z < 0 ? -1 : 1), 'Door title reading direction is reversed'); checks += 1;
+        symbol.visible = false; configuredGate.getObjectByName('WhiteEdges')!.visible = false;
+        const textImage = capture();
+        check(textImage.data.some((value, index) => index % 4 === 0 && value > 128), 'Font title is invisible'); checks += 1;
+        symbol.visible = true;
+      }
       configuredGate.getObjectByName('WhiteEdges')!.visible = false;
-      title.visible = false;
+      if (title) title.visible = false;
       const symbolImage = capture();
       check(symbolImage.data.some((value, index) => index % 4 === 0 && value > 128), 'Door content symbol is invisible'); checks += 1;
-      for (const graphic of [title, symbol]) {
+      for (const graphic of [symbol]) {
         scene.clear();
         const geometry = graphic.geometry.clone();
         const positions = geometry.getAttribute('position');
@@ -237,12 +259,32 @@ async function runSiteChecks(): Promise<Record<string, unknown>> {
         start.applyMatrix4(graphic.matrixWorld); end.applyMatrix4(graphic.matrixWorld);
         const image = capture();
         const width = strokeWidth(image, project(start), project(end), 8 * devicePixelRatio);
-        const expected = CONFIG.thickness * devicePixelRatio;
+        const expected = 1.5 * devicePixelRatio;
         check(Math.abs(width - expected) < 0.1 * devicePixelRatio, `Door graphic line width ${width} expected ${expected}`);
         graphicWidths.push(width); checks += 1;
         geometry.dispose(); isolated.geometry.dispose();
       }
     }
+  }
+  const readingErrors: number[] = [];
+  for (const graphics of [doorGraphics.notes, doorGraphics.essays]) {
+    scene.clear();
+    const titleGate = builder.createSiteGate(new THREE.Vector3(0, 20, 0), 0, graphics);
+    for (const child of titleGate.children) child.visible = child.name === 'DoorTitle';
+    scene.add(titleGate); await builder.ready();
+    camera.position.set(0, 640, 800); camera.lookAt(0, 91, 0); camera.updateMatrixWorld();
+    const front = capture();
+    camera.position.set(0, 640, -800); camera.lookAt(0, 91, 0); camera.updateMatrixWorld();
+    const back = capture();
+    let difference = 0, energy = 0;
+    for (let index = 0; index < front.data.length; index += 4) {
+      difference += Math.abs(front.data[index] - back.data[index]);
+      energy += front.data[index];
+    }
+    check(energy > 0, 'Font reading comparison requires visible text'); checks += 1;
+    const error = difference / energy;
+    check(error < 0.02, `Front and back text reading differs by ${error}`); checks += 1;
+    readingErrors.push(error);
   }
   camera.position.set(0, 640, 800); camera.lookAt(0, 0, 0); camera.updateMatrixWorld();
   scene.clear();
@@ -278,7 +320,7 @@ async function runSiteChecks(): Promise<Record<string, unknown>> {
     check(Math.abs(width - CONFIG.thickness * devicePixelRatio) < 0.3 * devicePixelRatio, `Ripple ${axis} width ${width}`); checks += 1;
   }
   scene.clear();
-  return { checks, rippleWidths: widths, graphicWidths };
+  return { checks, rippleWidths: widths, graphicWidths, readingErrors };
 }
 
 async function referencePixels(name: string): Promise<number[]> {

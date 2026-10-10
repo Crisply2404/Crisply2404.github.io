@@ -2,6 +2,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { chromium } from '@playwright/test';
 
+async function siteTitleBounds(page) {
+  return page.locator('.site-title').evaluate((element) => {
+    const range = document.createRange(); range.selectNodeContents(element);
+    const { x, y, width, height } = range.getBoundingClientRect();
+    return { x, y, width, height };
+  });
+}
+
 const browser = await chromium.launch({ channel: 'chrome', headless: true, downloadsPath: '.work/downloads' });
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 const errors = [];
@@ -24,6 +32,7 @@ await page.getByRole('button', { name: 'Switch to list view' }).click();
 assert.equal(await page.locator('.entry-row').count(), 3);
 await page.reload();
 assert.equal(await page.locator('.entry-row').count(), 3);
+const listTitle = await siteTitleBounds(page);
 await page.getByRole('button', { name: 'Switch to game view' }).click();
 await page.waitForSelector('.scene-canvas');
 assert.deepEqual(errors, []);
@@ -32,6 +41,8 @@ console.log('浏览器渲染、形态切换和选择保存检查通过。');
 for (const collection of ['notes', 'essays']) {
   await page.goto(`http://localhost:5174/${collection}/`);
   assert.equal(await page.locator('.site-header .site-title').textContent(), 'Crisply2404');
+  const collectionTitle = await siteTitleBounds(page);
+  assert.deepEqual(collectionTitle, listTitle, `${collection} site title moved`);
   assert.equal(await page.locator('.reading-navigation').count(), 0);
   assert.equal(await page.locator('.reading-kicker').count(), 0);
   const header = await page.locator('.site-header').boundingBox();
@@ -48,7 +59,8 @@ console.log('阅读页固定站点名称、分类标题尺寸和主页返回检�
 await page.goto('http://localhost:5174/tests/game.html');
 await page.waitForFunction(() => window.game?.player.grounded);
 assert.equal(await page.locator('.door-links').count(), 0);
-assert.match(await page.locator('.game-hint').textContent(), /Q \/ E.*Tab/);
+assert.equal(await page.locator('.game-hint').textContent(),
+  'WASD: Move · Space: Jump · Q / E or ← / →: Rotate view · Tab: Switch control mode · Click the floor: Move');
 const state = () => page.evaluate(() => {
   const game = window.game;
   return { x: game.player.pos.x, y: game.player.pos.y, z: game.player.pos.z, angle: game.targetCameraAngle,
@@ -81,8 +93,9 @@ await Promise.all([
   page.waitForFunction(() => window.game.ripple.visible),
   clickWorld(0, -100),
 ]);
-await page.waitForFunction(() => window.game.path.length === 0 && Math.abs(window.game.player.pos.z + 100) < 5);
+await page.waitForFunction(() => window.game.path.length === 0, undefined, { polling: 100 });
 const safe = await state();
+assert.ok(Math.abs(safe.z + 100) < 5, JSON.stringify(safe));
 await clickWorld(200, -100);
 assert.equal((await state()).path, 0);
 assert.ok(Math.abs((await state()).z - safe.z) < 1);
@@ -101,6 +114,7 @@ assert.equal(await page.locator('.control-preview').isVisible(), true);
 await page.waitForSelector('.game-hint', { state: 'detached' });
 assert.deepEqual(errors, []);
 console.log('真实键盘移动、镜头旋转、跳跃、鼠标寻路和自动进入门检查通过。');
+await page.close();
 
 const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true });
 mobile.on('pageerror', (error) => errors.push(error.message));
@@ -125,7 +139,7 @@ const touches = [
   { id: 1, x: jump.x + jump.width / 2, y: jump.y + jump.height / 2 },
 ];
 await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: touches });
-await mobile.waitForFunction(() => window.game.player.pos.y > 65 && window.game.player.pos.x < -5);
+await mobile.waitForFunction(() => window.game.player.pos.y > 65 && window.game.player.pos.x < -5, undefined, { polling: 10 });
 await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...touches[0], x: dpad.x + dpad.width - 5, y: dpad.y + dpad.height / 2 }, touches[1]] });
 await mobile.waitForFunction(() => window.game.touchKeys.has('right') && !window.game.touchKeys.has('up'));
 await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...touches[0], x: dpad.x + 5, y: dpad.y + 5 }, touches[1]] });
@@ -136,6 +150,15 @@ await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }
 await mobile.waitForFunction(() => window.game.touchKeys.size === 0 && !window.game.jumpPressed);
 assert.deepEqual(errors, []);
 console.log('手机双指移动与跳跃、滑动切换和输入释放检查通过。');
+await mobile.goto('http://localhost:5174/');
+await mobile.getByRole('button', { name: 'Switch to list view' }).click();
+const mobileTitle = await siteTitleBounds(mobile);
+for (const collection of ['notes', 'essays']) {
+  await mobile.goto(`http://localhost:5174/${collection}/`);
+  const title = await siteTitleBounds(mobile);
+  assert.deepEqual(title, mobileTitle, `Mobile ${collection} site title moved`);
+}
+console.log('桌面与手机列表页、notes 和 essays 的站点名称坐标检查通过。');
 for (const deviceScaleFactor of [2, 3]) {
   const dense = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor });
   dense.on('pageerror', (error) => errors.push(error.message));

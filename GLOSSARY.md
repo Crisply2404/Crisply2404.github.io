@@ -21,7 +21,7 @@ A configured entrance that names a site area and has a side, position, path, and
 _Avoid_: link card, portal
 
 **Door graphic**:
-A single-line title or content symbol in the Door's plane, rendered with the Corridor's screen-space stroke and scene depth. The title sits above the frame; the symbol sits inside it.
+A title set in the existing Open Sans font or a content symbol in the Door's plane. Titles have equal glyph spacing and remain readable from either side. Symbols share their own screen-space stroke width and sit inside the frame. The drum Door uses its symbol alone.
 
 **Visitor ball**:
 A temporary, uniformly styled ball representing one visitor currently in the Game view.

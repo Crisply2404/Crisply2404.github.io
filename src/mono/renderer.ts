@@ -53,7 +53,10 @@ export class MonoRenderer {
       'uniform sampler2D base_scene; uniform vec2 viewport_size; void main() { if (texture2D(base_scene, gl_FragCoord.xy / viewport_size).a < 0.5) discard; gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); }',
       { base_scene: { value: this.baseTarget.texture } },
     );
-    this.doorSymbol = this.shader(strokeVertex, include(strokeFragment, coverage), { base_scene: { value: this.baseTarget.texture } });
+    this.doorSymbol = this.shader(strokeVertex, include(strokeFragment, coverage), {
+      base_scene: { value: this.baseTarget.texture },
+      stroke_width: { value: 1.5 },
+    });
     this.doorSymbol.defines = { DOOR_SYMBOL: 1 };
     const copyMaterial = new THREE.ShaderMaterial({
       uniforms: { image: { value: this.target.texture } },

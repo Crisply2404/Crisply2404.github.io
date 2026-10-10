@@ -142,12 +142,11 @@ export class VisualBuilder {
     group.add(panel);
     group.add(this.createGateFrame());
     if (graphics) {
-      const label = this.createDoorGraphic(graphics.title, graphics.titleHeight);
-      label.name = 'DoorTitle'; label.position.y = 84 + graphics.titleHeight / 2;
+      if (graphics.title) group.add(this.createDoorTitle(graphics.title));
       const symbol = this.createDoorGraphic(graphics.symbol, 38);
       symbol.name = 'DoorSymbol'; symbol.position.y = 36;
       symbol.material = this.rendering.doorSymbol;
-      group.add(label, symbol);
+      group.add(symbol);
     } else {
       const face = new THREE.Mesh(new THREE.PlaneGeometry(64, 32), new THREE.MeshBasicMaterial({
         map: this.loadTexture(transparentExitSign), transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
@@ -156,6 +155,30 @@ export class VisualBuilder {
       group.add(face);
     }
     return group;
+  }
+
+  private createDoorTitle(text: string): THREE.Mesh {
+    const geometry = this.createFontGeometry(text, 64, 1, 6);
+    geometry.computeBoundingBox();
+    const bounds = geometry.boundingBox!;
+    const center = bounds.getCenter(new THREE.Vector3());
+    const scale = 14 / bounds.getSize(new THREE.Vector3()).y;
+    geometry.translate(-center.x, -center.y, 0);
+    geometry.scale(scale, scale, 1);
+    const label = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+      map: this.loadFontTexture(64), transparent: true, toneMapped: false, depthWrite: false, side: THREE.DoubleSide,
+    }));
+    label.name = 'DoorTitle'; label.position.y = 91;
+    const cameraPosition = new THREE.Vector3();
+    const inverseGate = new THREE.Matrix4();
+    label.onBeforeRender = (_renderer, _scene, camera): void => {
+      camera.getWorldPosition(cameraPosition).applyMatrix4(inverseGate.copy(label.parent!.matrixWorld).invert());
+      // 使用同一份字体图形，背面保持正常阅读方向。
+      label.scale.x = cameraPosition.z < 0 ? -1 : 1;
+      label.updateMatrix();
+      label.updateWorldMatrix(false, false);
+    };
+    return label;
   }
 
   private createDoorGraphic(source: string, height: number): THREE.Mesh {
@@ -181,6 +204,20 @@ export class VisualBuilder {
   }
 
   public addLabel(group: THREE.Group, text: string, height: number, color = '#fff', fontSize = 64, pixelSize = 0.35): void {
+    const geometry = this.createFontGeometry(text, fontSize, pixelSize);
+    const material = new THREE.MeshBasicMaterial({
+      map: this.loadFontTexture(fontSize), color, transparent: true, toneMapped: false, depthWrite: false, side: THREE.DoubleSide,
+    });
+    for (const side of [1, -1]) {
+      const face = new THREE.Mesh(geometry, material);
+      face.name = side === 1 ? 'LevelNumberFront' : 'LevelNumberBack';
+      face.position.set(0, height, side * 0.42);
+      face.rotation.y = side === 1 ? 0 : Math.PI;
+      group.add(face);
+    }
+  }
+
+  private createFontGeometry(text: string, fontSize: number, pixelSize: number, gap?: number): THREE.BufferGeometry {
     if (fontSize !== 32 && fontSize !== 64) throw new Error('Unsupported MONO TOWER font size');
     const font = fontMetrics[String(fontSize) as '32' | '64'];
     const glyphs = font.glyphs as Record<string, { advance: number; offset: number[]; size: number[]; rect: number[]; texture: number }>;
@@ -189,7 +226,9 @@ export class VisualBuilder {
     const advances = characters.map((character, index) => {
       const glyph = glyphs[character];
       if (!glyph || glyph.texture > 0) throw new Error(`Unsupported MONO TOWER glyph: ${character}`);
-      return glyph.advance - (kerning[character + (characters[index + 1] ?? '')] ?? 0);
+      return gap === undefined
+        ? glyph.advance - (kerning[character + (characters[index + 1] ?? '')] ?? 0)
+        : glyph.size[0] + (index < characters.length - 1 ? gap : 0);
     });
     let x = -advances.reduce((sum, advance) => sum + advance, 0) / 2;
     const baseline = font.height / 2 - font.ascent;
@@ -198,7 +237,7 @@ export class VisualBuilder {
     const uvs: number[] = [];
     for (const [index, character] of characters.entries()) {
       const glyph = glyphs[character];
-      const left = x + glyph.offset[0], top = baseline - glyph.offset[1];
+      const left = x + (gap === undefined ? glyph.offset[0] : 0), top = baseline - glyph.offset[1];
       const right = left + glyph.size[0], bottom = top - glyph.size[1];
       const [u, v, width, glyphHeight] = glyph.rect;
       for (const [px, py, tu, tv] of [
@@ -213,22 +252,17 @@ export class VisualBuilder {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    return geometry;
+  }
+
+  private loadFontTexture(fontSize: number): THREE.Texture {
     let texture = this.fontTextures.get(fontSize);
     if (!texture) {
       texture = this.loadTexture(fontSize === 32 ? font32 : font64);
       texture.flipY = false;
       this.fontTextures.set(fontSize, texture);
     }
-    const material = new THREE.MeshBasicMaterial({
-      map: texture, color, transparent: true, toneMapped: false, depthWrite: false, side: THREE.DoubleSide,
-    });
-    for (const side of [1, -1]) {
-      const face = new THREE.Mesh(geometry, material);
-      face.name = side === 1 ? 'LevelNumberFront' : 'LevelNumberBack';
-      face.position.set(0, height, side * 0.42);
-      face.rotation.y = side === 1 ? 0 : Math.PI;
-      group.add(face);
-    }
+    return texture;
   }
 
   public createContactMarker(): THREE.Group {

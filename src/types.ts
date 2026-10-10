@@ -4,8 +4,7 @@ export type DoorSide = 'left' | 'right';
 export type DoorGraphicId = 'notes' | 'essays' | 'chuan-zi';
 
 export interface DoorGraphics {
-  title: string;
-  titleHeight: number;
+  title?: string;
   symbol: string;
 }
 

@@ -104,7 +104,7 @@ export class GameScene {
     this.localAvatar.position.copy(spawn); this.scene.add(this.localAvatar);
     this.player.place(spawn);
     const hint = document.createElement('p'); hint.className = 'game-hint';
-    hint.textContent = 'WASD 移动 · Space 跳跃 · Q / E 或 ← / → 旋转视角 · Tab 切换 W 指向 · 点击地面移动';
+    hint.textContent = 'WASD: Move · Space: Jump · Q / E or ← / →: Rotate view · Tab: Switch control mode · Click the floor: Move';
     this.root.append(hint);
     hint.addEventListener('animationend', () => hint.remove(), { signal: this.listenerAbort.signal });
   }

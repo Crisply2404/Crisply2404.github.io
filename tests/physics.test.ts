@@ -96,7 +96,7 @@ test('复杂地形选择安全的最短行走路线', () => {
     for (let tick = 0; tick < 120; tick += 1) {
       assert.ok(physics.step(player, navigationForce(player.pos, player.vel, point.position)));
       assert.ok(player.pos.y > 39.9);
-      if (player.pos.distanceTo(point.position) < 0.5) { player.vel.x = player.vel.z = 0; reached = true; break; }
+      if (player.pos.distanceTo(point.position) < 0.5) { reached = true; break; }
     }
     assert.ok(reached);
   }

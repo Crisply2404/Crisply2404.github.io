@@ -108,8 +108,7 @@ export class VisualBuilder {
       panel.frustumCulled = false;
       group.add(panel);
     } else {
-      const points = [new THREE.Vector3(-29, 0, 0), new THREE.Vector3(-29, 72, 0), new THREE.Vector3(29, 72, 0), new THREE.Vector3(29, 0, 0)];
-      group.add(this.createStroke([[points[0], points[1]], [points[1], points[2]], [points[2], points[3]]]));
+      group.add(this.createGateFrame());
     }
     if (text) {
       this.addLabel(group, text, 36, completed ? '#000' : '#fff', 64, 0.35);
@@ -138,8 +137,7 @@ export class VisualBuilder {
     const panel = new THREE.Mesh(new THREE.PlaneGeometry(58, 72), this.materialBlack);
     panel.name = 'OpaqueInterior'; panel.position.y = 36;
     group.add(panel);
-    const points = [new THREE.Vector3(-29, 0, 0), new THREE.Vector3(-29, 72, 0), new THREE.Vector3(29, 72, 0), new THREE.Vector3(29, 0, 0)];
-    group.add(this.createStroke([[points[0], points[1]], [points[1], points[2]], [points[2], points[3]]]));
+    group.add(this.createGateFrame());
     if (title) {
       const canvas = document.createElement('canvas');
       const context = canvas.getContext('2d');
@@ -238,6 +236,11 @@ export class VisualBuilder {
   }
 
   public async ready(): Promise<void> { await Promise.all(this.textureLoads); }
+
+  private createGateFrame(): THREE.Mesh {
+    const points = [new THREE.Vector3(-29, 0, 0), new THREE.Vector3(-29, 72, 0), new THREE.Vector3(29, 72, 0), new THREE.Vector3(29, 0, 0)];
+    return this.createStroke([[points[0], points[1]], [points[1], points[2]], [points[2], points[3]]]);
+  }
 
   private loadTexture(url: string): THREE.Texture {
     let resolveTexture!: () => void;

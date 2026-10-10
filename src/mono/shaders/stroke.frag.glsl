@@ -1,6 +1,9 @@
 uniform sampler2D scene_depth;
 uniform mat4 inverse_projection;
 uniform vec2 viewport_size;
+#ifdef DOOR_SYMBOL
+uniform sampler2D base_scene;
+#endif
 varying vec2 center_uv;
 varying float center_depth;
 varying float pixel_size;
@@ -10,6 +13,9 @@ varying vec2 stroke_uv;
 varying float is_cap;
 
 void main() {
+#ifdef DOOR_SYMBOL
+  if (texture2D(base_scene, gl_FragCoord.xy / viewport_size).a < 0.5) discard;
+#endif
   vec2 texel = 0.5 / viewport_size;
   float depth = max(max(view_depth(center_uv + texel), view_depth(center_uv - texel)),
     max(view_depth(center_uv + vec2(texel.x, -texel.y)), view_depth(center_uv + vec2(-texel.x, texel.y))));

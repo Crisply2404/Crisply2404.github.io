@@ -29,6 +29,22 @@ await page.waitForSelector('.scene-canvas');
 assert.deepEqual(errors, []);
 console.log('浏览器渲染、形态切换和选择保存检查通过。');
 
+for (const collection of ['notes', 'essays']) {
+  await page.goto(`http://localhost:5174/${collection}/`);
+  assert.equal(await page.locator('.site-header .site-title').textContent(), 'Crisply2404');
+  assert.equal(await page.locator('.reading-navigation').count(), 0);
+  assert.equal(await page.locator('.reading-kicker').count(), 0);
+  const header = await page.locator('.site-header').boundingBox();
+  assert.equal(header.x, 0); assert.equal(header.y, 0);
+  const title = await page.locator('.collection-title').evaluate((element) => ({
+    fontSize: parseFloat(getComputedStyle(element).fontSize), top: element.getBoundingClientRect().top,
+  }));
+  assert.ok(title.fontSize <= 26 && title.top >= 112);
+  await page.locator('.site-title').click();
+  await page.waitForSelector('.scene-canvas');
+}
+console.log('阅读页固定站点名称、分类标题尺寸和主页返回检查通过。');
+
 await page.goto('http://localhost:5174/tests/game.html');
 await page.waitForFunction(() => window.game?.player.grounded);
 assert.equal(await page.locator('.door-links').count(), 0);
@@ -53,6 +69,7 @@ await page.waitForFunction(() => window.game.player.grounded);
 assert.ok(Math.abs((await state()).y - 40.01) < 0.1);
 
 const clickWorld = async (x, z) => {
+  await page.waitForFunction(() => Math.abs(window.game.cameraAngle - window.game.targetCameraAngle) < 0.00001);
   const projected = await page.evaluate(({ x, z }) => {
     const game = window.game;
     const point = game.player.pos.clone().set(x, 20, z).project(game.camera);
@@ -60,14 +77,16 @@ const clickWorld = async (x, z) => {
   }, { x, z });
   await page.mouse.click(projected.x, projected.y);
 };
-await clickWorld(0, -100);
-await page.waitForFunction(() => window.game.ripple.visible);
+await Promise.all([
+  page.waitForFunction(() => window.game.ripple.visible),
+  clickWorld(0, -100),
+]);
 await page.waitForFunction(() => window.game.path.length === 0 && Math.abs(window.game.player.pos.z + 100) < 5);
 const safe = await state();
 await clickWorld(200, -100);
 assert.equal((await state()).path, 0);
 assert.ok(Math.abs((await state()).z - safe.z) < 1);
-await clickWorld(-80, -160);
+await clickWorld(-72, -160);
 await page.waitForFunction(() => window.routes.includes('/notes/'), undefined, { polling: 100 });
 assert.ok(await page.evaluate(() => window.routes.includes('/notes/')), JSON.stringify(await page.evaluate(() => ({
   position: window.game.player.pos.toArray(),

@@ -15,7 +15,8 @@ void main() {
     if (dot(circle_position, circle_position) > radius * radius) discard;
     vec4 projected = projection * vec4(circle_center_view.xy + circle_position * circle_scale, -surface_depth, 1.0);
     gl_FragDepth = projected.z / projected.w * 0.5 + 0.5;
-    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    // Alpha 标记可见球面，供门内部与门内图案读取。
+    gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
 #else
   float radial_distance = length(circle_position);
   float distance = (radial_distance - radius) / circle_pixel_size;

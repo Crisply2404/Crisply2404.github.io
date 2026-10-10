@@ -1,6 +1,13 @@
 export type ViewMode = 'game' | 'list';
 
 export type DoorSide = 'left' | 'right';
+export type DoorGraphicId = 'notes' | 'essays' | 'chuan-zi';
+
+export interface DoorGraphics {
+  title: string;
+  titleHeight: number;
+  symbol: string;
+}
 
 export interface DoorConfig {
   id: string;
@@ -9,6 +16,7 @@ export interface DoorConfig {
   side: DoorSide;
   z: number;
   accent: string;
+  graphics: DoorGraphicId;
   appearance?: 'open' | 'completed' | 'exit';
 }
 

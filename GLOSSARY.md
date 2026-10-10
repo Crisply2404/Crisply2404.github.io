@@ -20,6 +20,9 @@ _Avoid_: map, hub
 A configured entrance that names a site area and has a side, position, path, and visual treatment.
 _Avoid_: link card, portal
 
+**Door graphic**:
+A single-line title or content symbol in the Door's plane, rendered with the Corridor's screen-space stroke and scene depth. The title sits above the frame; the symbol sits inside it.
+
 **Visitor ball**:
 A temporary, uniformly styled ball representing one visitor currently in the Game view.
 _Avoid_: user avatar, profile ball

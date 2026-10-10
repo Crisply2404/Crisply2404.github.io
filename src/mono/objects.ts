@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { SVGLoader } from 'three/addons/loaders/SVGLoader.js';
+import type { DoorGraphics } from '../types';
 import { CONFIG } from './config';
 import { buildEdges, type BlockData, type Segment } from './blocks';
 import { MonoRenderer } from './renderer';
@@ -129,32 +131,23 @@ export class VisualBuilder {
     return group;
   }
 
-  public createSiteGate(position: THREE.Vector3, angle = 0, title?: string): THREE.Group {
+  public createSiteGate(position: THREE.Vector3, angle = 0, graphics?: DoorGraphics): THREE.Group {
     const group = new THREE.Group();
     group.name = 'SiteGate';
     group.position.copy(position).add(new THREE.Vector3(0, -CONFIG.playerRadius, 0));
     group.rotation.y = angle;
-    const panel = new THREE.Mesh(new THREE.PlaneGeometry(58, 72), this.materialBlack);
+    const panel = new THREE.Mesh(new THREE.PlaneGeometry(58, 72), this.rendering.sitePanel);
     panel.name = 'OpaqueInterior'; panel.position.y = 36;
+    panel.layers.set(2);
     group.add(panel);
     group.add(this.createGateFrame());
-    if (title) {
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-      if (!context) throw new Error('Door title canvas is unavailable');
-      const font = '600 64px "Mono Tower", "PingFang SC", "Microsoft YaHei", sans-serif';
-      context.font = font;
-      const metrics = context.measureText(title);
-      canvas.width = Math.ceil(metrics.width) + 16; canvas.height = 96;
-      context.font = font; context.fillStyle = '#fff'; context.textAlign = 'center'; context.textBaseline = 'middle';
-      context.fillText(title, canvas.width / 2, canvas.height / 2);
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.generateMipmaps = false; texture.minFilter = THREE.LinearFilter; this.textures.add(texture);
-      const label = new THREE.Mesh(new THREE.PlaneGeometry(canvas.width * 0.4, canvas.height * 0.4),
-        new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false, toneMapped: false }));
-      label.name = 'DoorTitle'; label.position.y = 98;
-      label.userData.glyphHeight = (metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent) * 0.4;
-      group.add(label);
+    if (graphics) {
+      const label = this.createDoorGraphic(graphics.title, graphics.titleHeight);
+      label.name = 'DoorTitle'; label.position.y = 84 + graphics.titleHeight / 2;
+      const symbol = this.createDoorGraphic(graphics.symbol, 38);
+      symbol.name = 'DoorSymbol'; symbol.position.y = 36;
+      symbol.material = this.rendering.doorSymbol;
+      group.add(label, symbol);
     } else {
       const face = new THREE.Mesh(new THREE.PlaneGeometry(64, 32), new THREE.MeshBasicMaterial({
         map: this.loadTexture(transparentExitSign), transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
@@ -163,6 +156,28 @@ export class VisualBuilder {
       group.add(face);
     }
     return group;
+  }
+
+  private createDoorGraphic(source: string, height: number): THREE.Mesh {
+    const paths = new SVGLoader().parse(source).paths
+      .filter((path) => path.userData?.style.stroke && path.userData.style.stroke !== 'none')
+      .flatMap((path) => path.subPaths.map((subPath) => subPath.getPoints(32)));
+    const bounds = new THREE.Box2().setFromPoints(paths.flat());
+    const size = bounds.getSize(new THREE.Vector2());
+    if (!Number.isFinite(size.y) || size.y <= 0 || height <= 0) throw new Error('Door graphic requires visible strokes');
+    const center = bounds.getCenter(new THREE.Vector2());
+    const scale = height / size.y;
+    const segments: Segment[] = [];
+    for (const path of paths) {
+      for (let index = 1; index < path.length; index += 1) {
+        if (path[index - 1].equals(path[index])) continue;
+        const points = [path[index - 1], path[index]].map((point) => new THREE.Vector3(
+          (point.x - center.x) * scale, -(point.y - center.y) * scale, 0,
+        ));
+        segments.push([points[0], points[1]]);
+      }
+    }
+    return this.createStroke(segments);
   }
 
   public addLabel(group: THREE.Group, text: string, height: number, color = '#fff', fontSize = 64, pixelSize = 0.35): void {

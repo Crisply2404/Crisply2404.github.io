@@ -4,6 +4,7 @@ import { corridorBlocks, corridorEndZ, corridorStartZ, doors, doorPosition, fixe
 import type { AvatarState, DoorConfig } from './types';
 import { CONFIG, VIEWPORT, movementDirection, type WasdOrientation } from './mono/config';
 import { VisualBuilder } from './mono/objects';
+import { doorGraphics } from './mono/door-graphics';
 import { MonoRenderer } from './mono/renderer';
 import { PhysicsEngine, PlayerState, physicsReady } from './mono/physics';
 import { SafetyNavigationGraph, navigationForce } from './mono/navigation';
@@ -31,7 +32,6 @@ export class GameScene {
   private readonly navigation = new SafetyNavigationGraph(this.blocks);
   private readonly physics = new PhysicsEngine(this.blocks);
   private readonly player = new PlayerState();
-  private readonly doorObjects: THREE.Group[] = [];
   private readonly ripple = new NavigationRipple(this.blocks);
   private floorObjects!: THREE.Group;
   private readonly mobile: MobileControls;
@@ -111,9 +111,9 @@ export class GameScene {
 
   private addDoor(door: DoorConfig): void {
     const position = doorPosition(door);
-    const group = this.visualBuilder.createSiteGate(position, Math.PI / 2, door.title);
+    const group = this.visualBuilder.createSiteGate(position, Math.PI / 2, doorGraphics[door.graphics]);
     group.userData.door = door;
-    this.scene.add(group); this.doorObjects.push(group);
+    this.scene.add(group);
   }
 
   private installInput(): void {
@@ -227,12 +227,6 @@ export class GameScene {
     this.camera.position.set(this.player.pos.x + Math.sin(this.cameraAngle) * VIEWPORT.cameraDistance, this.player.pos.y + VIEWPORT.cameraHeight, this.player.pos.z + Math.cos(this.cameraAngle) * VIEWPORT.cameraDistance);
     this.camera.lookAt(this.player.pos); this.localAvatar.quaternion.copy(this.camera.quaternion); for (const remote of this.remoteAvatars.values()) remote.object.quaternion.copy(this.camera.quaternion);
     this.camera.updateMatrixWorld();
-    for (const group of this.doorObjects) {
-      const label = group.getObjectByName('DoorTitle')!;
-      label.quaternion.copy(group.quaternion).invert().multiply(this.camera.quaternion);
-      const screenScale = this.root.clientHeight / (this.camera.top - this.camera.bottom);
-      label.scale.setScalar(Math.max(1, 14 / (label.userData.glyphHeight * screenScale)));
-    }
     this.ripple.update(delta); this.scene.updateMatrixWorld(true);
     this.rendering.render(this.scene, this.camera);
     this.controlPreview.update(this.camera, this.targetCameraAngle, delta, this.root.clientHeight);

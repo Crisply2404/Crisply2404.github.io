@@ -245,27 +245,6 @@ a {
   margin: 0 auto;
 }
 
-.reading-navigation {
-  display: flex;
-  gap: 14px;
-  align-items: center;
-  margin-bottom: 32px;
-  color: rgba(255, 255, 255, 0.54);
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  line-height: 1.6;
-}
-
-.reading-navigation a {
-  text-decoration: none;
-}
-
-.reading-navigation a:hover,
-.reading-navigation a:focus-visible {
-  color: #fff;
-  text-decoration: underline;
-}
-
 .reading-column h1,
 .reading-column h2,
 .reading-column h3 {
@@ -276,6 +255,11 @@ a {
 .reading-column h1 {
   margin: 0 0 32px;
   font-size: clamp(28px, 6vw, 56px);
+}
+
+.reading-column .collection-title {
+  font-size: clamp(18px, 3vw, 26px);
+  letter-spacing: 0.08em;
 }
 
 .reading-column h2 {

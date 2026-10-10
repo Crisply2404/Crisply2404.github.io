@@ -20,6 +20,7 @@
 - 保留原游戏物件的尺寸、图案、字体、线宽、深度、遮挡与操作细节。线宽使用原游戏的 2.5 世界单位，并通过投影计算各个方向的相同显示宽度。
 - 完成修改后运行物理检查、浏览器检查和 Godot 参考图比较。参考 PNG 位于 `tests/fixtures/mono-tower/`；记录实际误差数据。
 - 网站场景与入口要求见 `docs/adr/0004-corridor-interaction.md`。提交消息采用 Conventional Commits。
+- 按完整、可以独立审查的修改创建提交；同一轮相关修改、文档与验证记录统一提交。
 
 ## Agent skills
 

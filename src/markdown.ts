@@ -3,12 +3,11 @@ import type { CollectionKind } from './content';
 import { entriesFor } from './content';
 import { doors } from './sceneConfig';
 
-function navigation(kind?: CollectionKind): string {
+function header(): string {
   return `
-    <nav class="reading-navigation" aria-label="阅读导航">
-      <a href="/">Crisply2404</a>
-      ${kind ? `<span aria-hidden="true">/</span><a href="/${kind}/">${kind.toUpperCase()}</a>` : ''}
-    </nav>
+    <header class="site-header">
+      <a class="site-title" href="/">Crisply2404</a>
+    </header>
   `;
 }
 
@@ -28,10 +27,10 @@ export function renderCollection(kind: CollectionKind): string {
 
   return `
     <div class="site-shell">
+      ${header()}
       <main class="content-root">
         <div class="reading-column">
-          ${navigation()}
-          <h1>${kind.toUpperCase()}</h1>
+          <h1 class="collection-title">${kind.toUpperCase()}</h1>
           ${rows ? `<div class="entry-list">${rows}</div>` : '<p class="empty-state">No entries yet.</p>'}
         </div>
       </main>
@@ -44,15 +43,17 @@ export function renderArticle(kind: CollectionKind, slug: string): string {
   if (!entry) {
     return `
       <div class="site-shell">
-        <main class="content-root"><div class="reading-column">${navigation(kind)}<h1>Not found</h1></div></main>
+        ${header()}
+        <main class="content-root"><div class="reading-column"><h1>Not found</h1></div></main>
       </div>
     `;
   }
 
   return `
     <div class="site-shell">
+      ${header()}
       <main class="content-root">
-        <div class="reading-column">${navigation(kind)}<article>${marked.parse(entry.source)}</article></div>
+        <div class="reading-column"><article>${marked.parse(entry.source)}</article></div>
       </main>
     </div>
   `;

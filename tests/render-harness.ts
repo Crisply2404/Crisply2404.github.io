@@ -4,6 +4,8 @@ import { MonoRenderer } from '../src/mono/renderer';
 import { CONFIG } from '../src/mono/config';
 import { ControlPreview } from '../src/mono/control-preview';
 import { NavigationRipple } from '../src/mono/navigation-ripple';
+import { doors } from '../src/sceneConfig';
+import { doorGraphics } from '../src/mono/door-graphics';
 import '../src/styles.css';
 
 await document.fonts.load('600 64px "Mono Tower"');
@@ -42,10 +44,9 @@ function brightness(image: ReturnType<typeof capture>, point: THREE.Vector2, rea
 
 function check(condition: boolean, message: string): void { if (!condition) throw new Error(message); }
 
-function strokeWidth(image: ReturnType<typeof capture>, start: THREE.Vector2, end: THREE.Vector2): number {
+function strokeWidth(image: ReturnType<typeof capture>, start: THREE.Vector2, end: THREE.Vector2, padding = 8): number {
   const length = start.distanceTo(end);
   const tangent = end.clone().sub(start).normalize();
-  const padding = 8;
   let coverage = 0;
   for (let y = Math.floor(Math.min(start.y, end.y)) - padding; y <= Math.ceil(Math.max(start.y, end.y)) + padding; y += 1) {
     for (let x = Math.floor(Math.min(start.x, end.x)) - padding; x <= Math.ceil(Math.max(start.x, end.x)) + padding; x += 1) {
@@ -147,7 +148,7 @@ async function runSiteChecks(): Promise<Record<string, unknown>> {
   camera.position.set(0, 640, 800); camera.lookAt(0, 0, 0); camera.updateMatrixWorld();
   let checks = 0;
   scene.clear();
-  const gate = builder.createSiteGate(new THREE.Vector3(0, 20, 0), 0, '击鼓传字');
+  const gate = builder.createSiteGate(new THREE.Vector3(0, 20, 0), 0, doorGraphics[doors[2].graphics]);
   gate.quaternion.copy(camera.quaternion); scene.add(gate);
   const baseline = capture();
   const rearLine = builder.createStroke([[
@@ -157,6 +158,93 @@ async function runSiteChecks(): Promise<Record<string, unknown>> {
   scene.add(rearLine);
   const occluded = capture();
   check(baseline.data.every((value, index) => value === occluded.data[index]), 'Door interior failed to hide background line'); checks += 1;
+  scene.remove(rearLine);
+  const player = builder.createPlayerMesh();
+  player.position.copy(new THREE.Vector3(0, 36, -40).applyQuaternion(camera.quaternion));
+  scene.add(player);
+  const throughDoor = capture();
+  const playerCenter = project(player.position);
+  check(brightness(throughDoor, playerCenter.clone().add(new THREE.Vector2(20 * devicePixelRatio, 0)), 1) > 0.2,
+    'Door interior hid the player behind it'); checks += 1;
+  const blocker = new THREE.Mesh(new THREE.BoxGeometry(100, 100, 10), builder.materialBlack);
+  blocker.position.copy(new THREE.Vector3(0, 36, -10).applyQuaternion(camera.quaternion));
+  blocker.quaternion.copy(camera.quaternion);
+  scene.add(blocker);
+  const blockedPlayer = capture();
+  scene.remove(player);
+  const withoutPlayer = capture();
+  check(blockedPlayer.data.every((value, index) => value === withoutPlayer.data[index]),
+    'Scene geometry failed to hide the player through the door'); checks += 1;
+  scene.remove(blocker); scene.add(player);
+  scene.remove(gate);
+  const playerOnly = capture();
+  scene.add(gate);
+  gate.getObjectByName('WhiteEdges')!.visible = false;
+  gate.getObjectByName('DoorTitle')!.visible = false;
+  const coveredSymbol = capture();
+  const playerSampleRadius = 19 * devicePixelRatio;
+  check(playerOnly.data.every((value, index) => {
+    const point = Math.floor(index / 4);
+    const x = point % playerOnly.width + 0.5 - playerCenter.x;
+    const y = Math.floor(point / playerOnly.width) + 0.5 - playerCenter.y;
+    return x * x + y * y >= playerSampleRadius * playerSampleRadius || value === coveredSymbol.data[index];
+  }),
+    'Door symbol covered the player behind the door'); checks += 1;
+  const graphicWidths: number[] = [];
+  for (let view = 0; view < 4; view += 1) {
+    const angle = Math.PI / 4 + view * Math.PI / 2;
+    camera.position.set(Math.sin(angle) * 800, 640, Math.cos(angle) * 800);
+    camera.lookAt(0, 0, 0); camera.updateMatrixWorld();
+    for (const door of doors) {
+      scene.clear();
+      const configuredGate = builder.createSiteGate(new THREE.Vector3(0, 20, 0), Math.PI / 2, doorGraphics[door.graphics]);
+      scene.add(configuredGate); scene.updateMatrixWorld(true);
+      const title = configuredGate.getObjectByName('DoorTitle') as THREE.Mesh;
+      const symbol = configuredGate.getObjectByName('DoorSymbol') as THREE.Mesh;
+      const titleBounds = new THREE.Box3().setFromBufferAttribute(title.geometry.getAttribute('position') as THREE.BufferAttribute);
+      check(titleBounds.min.y + title.position.y >= 84 - 0.001, 'Door title overlaps the frame'); checks += 1;
+      check(title.quaternion.equals(new THREE.Quaternion()) && titleBounds.min.z === 0 && titleBounds.max.z === 0,
+        'Door title must share the door plane'); checks += 1;
+      const doorImage = capture();
+      check(doorImage.data.some((value, index) => index % 4 === 0 && value > 128), 'Configured door is invisible'); checks += 1;
+      configuredGate.getObjectByName('WhiteEdges')!.visible = false;
+      title.visible = false;
+      const symbolImage = capture();
+      check(symbolImage.data.some((value, index) => index % 4 === 0 && value > 128), 'Door content symbol is invisible'); checks += 1;
+      for (const graphic of [title, symbol]) {
+        scene.clear();
+        const geometry = graphic.geometry.clone();
+        const positions = geometry.getAttribute('position');
+        const caps = geometry.getAttribute('cap');
+        let selected = -1;
+        let length = 0;
+        for (let index = 0; index < positions.count; index += 3) {
+          if (caps.getX(index) > 0) continue;
+          const candidate = new THREE.Vector3().fromBufferAttribute(positions, index)
+            .distanceTo(new THREE.Vector3().fromBufferAttribute(positions, index + 1));
+          if (candidate > length) { length = candidate; selected = index; }
+        }
+        check(selected >= 0, 'Door graphic requires a line');
+        const start = new THREE.Vector3().fromBufferAttribute(positions, selected);
+        const end = new THREE.Vector3().fromBufferAttribute(positions, selected + 1);
+        const direction = end.clone().sub(start).normalize();
+        // 延长同一笔画的测量区域，使像素积分覆盖足够长度。
+        start.addScaledVector(direction, -80); end.addScaledVector(direction, 80);
+        const isolated = builder.createStroke([[start, end]], false);
+        isolated.material = graphic.material;
+        isolated.matrixAutoUpdate = false; isolated.matrix.copy(graphic.matrixWorld);
+        scene.add(isolated);
+        start.applyMatrix4(graphic.matrixWorld); end.applyMatrix4(graphic.matrixWorld);
+        const image = capture();
+        const width = strokeWidth(image, project(start), project(end), 8 * devicePixelRatio);
+        const expected = CONFIG.thickness * devicePixelRatio;
+        check(Math.abs(width - expected) < 0.1 * devicePixelRatio, `Door graphic line width ${width} expected ${expected}`);
+        graphicWidths.push(width); checks += 1;
+        geometry.dispose(); isolated.geometry.dispose();
+      }
+    }
+  }
+  camera.position.set(0, 640, 800); camera.lookAt(0, 0, 0); camera.updateMatrixWorld();
   scene.clear();
   const exit = builder.createSiteGate(new THREE.Vector3(0, 20, 0));
   const graphic = exit.getObjectByName('ExitGraphic') as THREE.Mesh;
@@ -190,7 +278,7 @@ async function runSiteChecks(): Promise<Record<string, unknown>> {
     check(Math.abs(width - CONFIG.thickness * devicePixelRatio) < 0.3 * devicePixelRatio, `Ripple ${axis} width ${width}`); checks += 1;
   }
   scene.clear();
-  return { checks, rippleWidths: widths };
+  return { checks, rippleWidths: widths, graphicWidths };
 }
 
 async function referencePixels(name: string): Promise<number[]> {

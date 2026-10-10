@@ -49,6 +49,8 @@ export class PresenceClient {
     this.socket.addEventListener('error', () => undefined);
     this.socket.addEventListener('close', () => {
       if (this.destroyed) return;
+      this.avatars.clear();
+      this.listener(new Map());
       this.reconnectTimer = window.setTimeout(() => this.connect(), 3000);
     });
   }

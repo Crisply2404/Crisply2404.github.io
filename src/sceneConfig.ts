@@ -1,42 +1,38 @@
-import type { DoorConfig, NavigationNode } from './types';
+import * as THREE from 'three';
+import type { DoorConfig } from './types';
+import type { BlockData } from './mono/blocks';
+import { CONFIG } from './mono/config';
 
-export const corridorWidth = 180;
-export const corridorFloorY = 0;
-export const corridorStartZ = 120;
-export const corridorEndPadding = 180;
-export const playerRadius = 20;
-export const blockSize = 40;
+export const blockSize = CONFIG.blockSize;
+export const playerRadius = CONFIG.playerRadius;
 export const fixedStep = 1 / 60;
+export const corridorWidth = 200;
+export const corridorFloorY = 20;
+export const corridorStartZ = 100;
 
 export const doors: DoorConfig[] = [
-  { id: 'notes', title: 'NOTES', path: '/notes/', side: 'left', z: -180, accent: '#ffffff' },
-  { id: 'essays', title: 'ESSAYS', path: '/essays/', side: 'right', z: -420, accent: '#ffffff' },
-  { id: 'chuan-zi', title: '击鼓传字', path: '/chuan-zi/', side: 'left', z: -660, accent: '#ffffff' },
+  { id: 'notes', title: 'NOTES', path: '/notes/', side: 'left', z: -160, accent: '#ffffff' },
+  { id: 'essays', title: 'ESSAYS', path: '/essays/', side: 'right', z: -400, accent: '#ffffff' },
+  { id: 'chuan-zi', title: 'CHUAN-ZI', path: '/chuan-zi/', side: 'left', z: -640, accent: '#ffffff' },
 ];
 
-export const corridorEndZ = Math.min(...doors.map((door) => door.z)) - corridorEndPadding;
+export const corridorEndZ = Math.min(...doors.map((door) => door.z)) - 180;
+export const spawn = new THREE.Vector3(0, 40.02, 40);
+export const checkpointPositions = [new THREE.Vector3(0, 40.02, -280), new THREE.Vector3(0, 40.02, -520)];
 
-export const navigationNodes: NavigationNode[] = Array.from(
-  { length: Math.ceil((corridorStartZ - corridorEndZ) / blockSize) + 1 },
-  (_, index) => ({
-    id: `center-${index}`,
-    x: 0,
-    z: corridorStartZ - index * blockSize,
-  }),
-);
+export function doorPosition(door: DoorConfig): THREE.Vector3 { return new THREE.Vector3(door.side === 'left' ? -80 : 80, 40.02, door.z); }
 
-export function createNavigationNodes(): NavigationNode[] {
-  const nodes: NavigationNode[] = [];
-  const xValues = [-60, -30, 0, 30, 60];
-  const zCount = Math.ceil((corridorStartZ - corridorEndZ) / blockSize) + 1;
-
-  for (let zIndex = 0; zIndex < zCount; zIndex += 1) {
-    const z = corridorStartZ - zIndex * blockSize;
-    for (const x of xValues) {
-      nodes.push({ id: `${x}:${z}`, x, z });
-    }
+export function corridorBlocks(): BlockData[] {
+  const blocks: BlockData[] = [];
+  for (let gz = Math.ceil((corridorEndZ + 20) / 40); gz <= Math.floor((corridorStartZ - 20) / 40); gz += 1) {
+    for (let gx = -2; gx <= 2; gx += 1) blocks.push({ gx, gy: 0, gz, type: 'standard' });
   }
-
-  return nodes;
+  blocks.push(
+    { gx: -4, gy: 0, gz: -3, type: 'standard' },
+    { gx: 4, gy: 0, gz: -8, type: 'standard' },
+    { gx: -4, gy: 1, gz: -3, type: 'spike' },
+    { gx: 4, gy: 1, gz: -8, type: 'spike' },
+  );
+  return blocks;
 }
 

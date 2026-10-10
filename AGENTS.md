@@ -14,6 +14,12 @@
 - 使用 `apply_patch` 编辑文本文件。中间文件使用仓库内的忽略目录；不使用 `/tmp`。
 - 实现完成后运行与修改相关的检查、构建和可运行验证，直到结果正确。
 
+## MONO TOWER 复刻
+
+- 修改游戏物件或绘制逻辑时，阅读原游戏对应的完整代码与 `DESIGN.md`，同时检查 `docs/adr/0003-browser-monotower-rendering.md`。
+- 保留原游戏物件的尺寸、图案、字体、线宽、深度、遮挡与操作细节。线宽使用原游戏的 2.5 世界单位，并通过投影计算各个方向的相同显示宽度。
+- 完成修改后运行物理检查、浏览器检查和 Godot 参考图比较。参考 PNG 位于 `tests/fixtures/mono-tower/`；记录实际误差数据。
+
 ## Agent skills
 
 ### Issue tracker

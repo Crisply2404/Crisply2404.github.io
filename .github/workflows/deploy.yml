@@ -35,6 +35,9 @@ jobs:
       - name: Build personal site
         run: npm run build
 
+      - name: Verify physics and safe navigation
+        run: npm test
+
       - name: Checkout private chuan-zi source
         uses: actions/checkout@v4
         with:

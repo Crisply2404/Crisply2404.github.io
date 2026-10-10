@@ -7,4 +7,7 @@ dist/
 chuan-zi/
 presence/node_modules/
 presence/dist/
+.work/
+test-results/
+playwright-report/
 

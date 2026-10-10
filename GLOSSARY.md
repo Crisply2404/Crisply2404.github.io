@@ -32,3 +32,11 @@ _Avoid_: room history, visitor database
 The walkable graph of safe floor, door approach areas, and explicitly configured future jump connections. A path exists only when every node and connection is safe.
 _Avoid_: click path, auto route
 
+**MONO TOWER object model**:
+The shared vocabulary of standard blocks, spikes, strokes, gates, exit signs, checkpoints, contact markers, and player balls used by the game and the personal site.
+_Avoid_: simplified scene, decorative object
+
+**Screen-space stroke**:
+A line that keeps the same visible width for every direction and camera rotation at a given viewing scale.
+_Avoid_: Three.js line, variable-width edge
+

@@ -1,6 +1,6 @@
 import './styles.css';
 import { renderArticle, renderCollection, renderListPage } from './markdown';
-import { GameScene } from './game';
+import type { GameScene } from './game';
 import type { CollectionKind } from './content';
 import type { ViewMode } from './types';
 
@@ -11,6 +11,7 @@ if (!app) {
 const appRoot = app;
 
 let activeScene: GameScene | undefined;
+let routeGeneration = 0;
 const modeStorageKey = 'crisply2404-home-mode';
 
 function getMode(): ViewMode {
@@ -22,7 +23,8 @@ function setMode(mode: ViewMode): void {
   renderRoute();
 }
 
-function renderHome(): void {
+async function renderHome(): Promise<void> {
+  const generation = ++routeGeneration;
   activeScene?.destroy();
   activeScene = undefined;
   if (getMode() === 'list') {
@@ -33,17 +35,20 @@ function renderHome(): void {
 
   appRoot.innerHTML = `
     <div class="site-shell">
-      <header class="site-header">
+      <header class="site-header game-header">
         <a class="site-title" href="/">Crisply2404</a>
         <button class="view-toggle" data-view-toggle aria-label="Switch to list view" title="Switch to list view">☷</button>
       </header>
       <main class="scene-root"></main>
-      <p class="scene-controls">W A S D · SPACE · Q E · R<br />CLICK TO WALK</p>
     </div>
   `;
   appRoot.querySelector<HTMLButtonElement>('[data-view-toggle]')?.addEventListener('click', () => setMode('list'));
   const sceneRoot = appRoot.querySelector<HTMLElement>('.scene-root');
   if (!sceneRoot) throw new Error('Scene root is unavailable');
+  const [{ GameScene }, { physicsReady }] = await Promise.all([import('./game'), import('./mono/physics')]);
+  await physicsReady;
+  await document.fonts.load('600 64px "Mono Tower"');
+  if (generation !== routeGeneration) return;
   activeScene = new GameScene(sceneRoot, (path) => {
     window.location.assign(path);
   });
@@ -52,10 +57,11 @@ function renderHome(): void {
 function renderRoute(): void {
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   if (path === '/') {
-    renderHome();
+    void renderHome();
     return;
   }
   const match = path.match(/^\/(notes|essays)(?:\/(.+))?$/) as RegExpMatchArray | null;
+  routeGeneration += 1;
   if (match) {
     activeScene?.destroy();
     activeScene = undefined;

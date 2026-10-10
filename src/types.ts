@@ -9,6 +9,7 @@ export interface DoorConfig {
   side: DoorSide;
   z: number;
   accent: string;
+  appearance?: 'open' | 'completed' | 'exit';
 }
 
 export interface NavigationNode {

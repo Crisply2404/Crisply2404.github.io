@@ -8,7 +8,7 @@
 
 ```text
 [$setup-matt-pocock-skills](/Users/hco/.agents/skills/setup-matt-pocock-skills/SKILL.md) [$grill-with-docs](/Users/hco/.agents/skills/grill-with-docs/SKILL.md) 我希望在当前crisply2404.github.io这里做一个我的个人网站，但这个博客的主页比较有趣，它直接借鉴我的一个游戏：/Users/hco/Documents/GodotProjects/mono-tower/，我希望你能在不要动这个游戏的情况下一比一复刻到我的个人网页，除了暂停页，因为网页不需要暂停，当然地图也不用刻意复刻，甚至对于blog来说地图应该简单一点，就是直接一个直的过道然后两边把入口门放上就可以，以后还能接着延长这个过道然后两边放门，像那种酒店的过道一样。然后我希望博客的主页也可以展示其他来这个网站的人，它们也会变成这个游戏里的一个球，然后是可以实时看到其他正在浏览我的网站的人在我网站里是怎么移动的，然后每个门相当于是我的个人网站的各个地方的入口，比如一个是notes的入口，一个是随笔的入口（不知道英文叫什么，反正就是随心所想写下来的文字），一个是我做的网页联机游戏“击鼓传字“[https://github.com/Crisply2404/chuan-zi](https://github.com/Crisply2404/chuan-zi)的入口，当然这个项目其实已经在我们的目录里面，但我不希望你把它push到我们个人网站的仓库，因为这个仓库是一个私密仓库，但我又希望个人网站能通到这个项目，因为我想借用github的域名。不知道chuan-zi是不是应该作为一个我们个人网站的submodule，还是说有什么更好的方式。你不需要也不应该去修改chuan-zi，而是把我们个人网页到chuan-zi的连接做好。
-还有，请把我们双方的聊天记录写在一个md里面，尤其是把我说的消息原文+图片保存，并把这个规则记录到agents.md。
+还有，请把我们双方的聊天记录写在一个md里面，尤其是要把我说的消息原文+图片保存，并把这个规则记录到agents.md。
 ```
 
 图片附件：无。
@@ -88,60 +88,413 @@ Q25 选择了每个浏览器本地计算，这会在两名访客同时接触时�
 
 所有设计分支已经回答，当前决定进入确认阶段。实现开始前需要确认下面的设计与工程配置；确认后我会创建本地文件、初始化公开 GitHub 仓库、发布主站，并验证网页构建、presence 服务和工作流。
 
-### 用户消息 2 至 13
+### 用户原文：工程任务记录
 
-工程任务记录使用 GitHub Issues，使用 `Crisply2404/Crisply2404.github.io`。
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_b6e047d3bb4442bfa428fcbc42d3eeec\",0]","question":"工程任务记录推荐使用本地 Markdown：当前目录尚未初始化 Git，GitHub 上也暂未查到 Crisply2404/Crisply2404.github.io。任务记录使用哪一种？","answer":"GitHub Issues，使用 Crisply2404/Crisply2404.github.io"}]
+</send_user_message_question_reply>
+```
 
-Q1 视觉与渲染：是，保持 Godot 的黑底、白色线框、黑白球体、正交镜头、旋转 90 度和球体遮挡规则。
+### 用户原文：triage 标签
 
-Q2 操作：保留游戏完整操作，当然也可以用鼠标点选要去的地方然后自动寻路过去，包括自行跳跃，但不能让鼠标点去一个必定会掉下去的路，也就是不能让鼠标点了虚空之后玩家还走过去。
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_2914d3623c074bfabdce58a762289ff7\",0]","question":"是否保留默认 triage 标签？","answer":"是，使用 needs-triage、needs-info、ready-for-agent、ready-for-human、wontfix"}]
+</send_user_message_question_reply>
+```
 
-Q3 门的进入方式：靠近门自动进入，保留键盘与触控的移动体验。
+### 用户原文：Q1
 
-Q4 内容页面：notes、essays、chuan-zi；notes 与 essays 使用网站仓库里的 Markdown，chuan-zi 链接到 /chuan-zi/。
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_06494793f6324d1291aedfc178b561a9\",0]","question":"Q1 视觉与渲染：是否把主页实现为 Three.js WebGL 场景？","answer":"是，保持 Godot 的黑底、白色线框、黑白球体、正交镜头、旋转 90 度和球体遮挡规则"}]
+</send_user_message_question_reply>
+```
 
-Q5 访客球：临时球体，使用统一外观，因为我们的球的样子不都是统一的吗。
+### 用户原文：Q2
 
-Q6 presence 服务：接受；在网站项目中提供独立 presence 服务目录，网页通过环境变量连接部署后的 WSS 地址；服务只保存在线球体的临时位置。
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_06494793f6324d1291aedfc178b561a9\",1]","question":"Q2 操作：网页是否沿用游戏的完整操作？","answer":"保留游戏完整操作，当然也可以用鼠标点选要去的地方然后自动寻路过去，包括自行跳跃，但不能让鼠标点去一个必定会掉下去的路，也就是不能让鼠标点了虚空之后玩家还走过去"}]
+</send_user_message_question_reply>
+```
 
-Q7 个人网站仓库：创建或使用公开的 Crisply2404.github.io 仓库，以适配 GitHub Free 的 Pages；私密项目源代码不复制进来。
+### 用户原文：Q3
 
-Q8 chuan-zi 连接：确认；不使用 submodule，不复制源代码，独立构建 dist 后只发布产物，主页链接固定指向 /chuan-zi/。
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_06494793f6324d1291aedfc178b561a9\",2]","question":"Q3 门的进入方式：球体靠近门时如何打开入口？","answer":"靠近门自动进入，保留键盘与触控的移动体验"}]
+</send_user_message_question_reply>
+```
 
-Q9 走廊扩展：使用独立的门配置数据，每个门包含标题、路径、位置和外观，走廊长度按门数量生成。
+### 用户原文：Q4
 
-Q10 图片归档：把收到的原图保存到 docs/chat-assets/，在 CHAT_HISTORY.md 对应用户原文下使用相对 Markdown 图片链接；没有图片时只保存原文。
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_06494793f6324d1291aedfc178b561a9\",3]","question":"Q4 内容页面：主页的门应该进入哪些 URL 和内容类型？","answer":"notes、essays、chuan-zi；notes 与 essays 使用网站仓库里的 Markdown，chuan-zi 链接到 /chuan-zi/"}]
+</send_user_message_question_reply>
+```
 
-Q17 自动进门与新标签页：保留自动进门；到门前时在当前页进入对应内容，门本身提供明确的“新标签页打开”点击入口。
+### 用户原文：Q5
 
-Q18 鼠标寻路范围：是，当前导航图覆盖安全地面与门前区域，路径规划器拒绝虚空和危险节点，未来用配置增加安全节点与跳跃连接。
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_06494793f6324d1291aedfc178b561a9\",4]","question":"Q5 访客球：其他浏览者应如何显示？","answer":"临时球体，使用统一外观，因为我们的球的样子不都是统一的吗"}]
+</send_user_message_question_reply>
+```
 
-Q19 主页身份文字：使用 Crisply2404 作为站点名称，其他个人介绍只通过 Markdown 内容出现。
+### 用户原文：Q6
 
-Q20 失败与断线：本地球体和门继续可用，不报任何错误以及让玩家感觉联机不可用。服务恢复后重新加入。
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_06494793f6324d1291aedfc178b561a9\",5]","question":"Q6 实时服务：访客位置广播放在哪里？","answer":"访客位置广播能不能放在github pages，连上网页就能看到其他正在访客的位置，或者用p2p?"}]
+</send_user_message_question_reply>
+```
 
-Q21 访客球体碰撞：发生碰撞；presence 服务同步碰撞结果。
+### 用户原文：Q7
 
-Q22 presence 房间：是，使用一个公开的临时 lobby；进入主页加入，离开主页立即移除，服务不保存历史位置。
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_06494793f6324d1291aedfc178b561a9\",6]","question":"Q7 个人网站仓库：GitHub Pages 的源仓库使用什么可见性？","answer":"创建或使用公开的 Crisply2404.github.io 仓库，以适配 GitHub Free 的 Pages；私密项目源代码不复制进来"}]
+</send_user_message_question_reply>
+```
 
-Q23 chuan-zi 发布：是；工作流使用主站仓库的 CHUAN_ZI_TOKEN 只读访问私有仓库，构建 chuan-zi 的 dist 并发布到主站 /chuan-zi/，不修改 chuan-zi。
+### 用户原文：Q8
 
-Q24 主站发布：现在通过 GitHub CLI 创建公开仓库并直接发布。
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_06494793f6324d1291aedfc178b561a9\",7]","question":"Q8 chuan-zi 连接：是否采用构建产物发布到主站 /chuan-zi/ 的方式？","answer":"确认；不使用 submodule，不复制源代码，独立构建 dist 后只发布产物，主页链接固定指向 /chuan-zi/"}]
+</send_user_message_question_reply>
+```
 
-Q25 共享碰撞的计算方式：每个浏览器本地计算碰撞，再互相发送结果并自行解决差异。
+### 用户原文：Q9
 
-Q26 共享球体发生碰撞时的交互：只阻止球体重叠，不产生推动效果。
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_06494793f6324d1291aedfc178b561a9\",8]","question":"Q9 走廊扩展：未来添加门时采用什么结构？","answer":"使用独立的门配置数据，每个门包含标题、路径、位置和外观，走廊长度按门数量生成"}]
+</send_user_message_question_reply>
+```
 
-Q27 本地物理的同步协议：接受访客球体偶尔出现位置差异，服务只广播最新位置，不做 tick 排序和校正。
+### 用户原文：Q10
 
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_06494793f6324d1291aedfc178b561a9\",9]","question":"Q10 聊天记录中的图片：图片文件如何归档？","answer":"把收到的原图保存到 docs/chat-assets/，在 CHAT_HISTORY.md 对应用户原文下使用相对 Markdown 图片链接；没有图片时只保存原文"}]
+</send_user_message_question_reply>
+```
+
+### 用户原文：Q6 presence 服务
+
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_c34077961e3c464a93ba5ffd9dd9fa70\",0]","question":"Q6 presence 服务：是否接受独立的 WebSocket relay？","answer":"接受；在网站项目中提供独立 presence 服务目录，网页通过环境变量连接部署后的 WSS 地址；服务只保存在线球体的临时位置"}]
+</send_user_message_question_reply>
+```
+
+### 用户原文：Q11
+
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_c34077961e3c464a93ba5ffd9dd9fa70\",1]","question":"Q11 安全寻路：鼠标点击不可达位置或虚空时，球体如何响应？","answer":"忽略这次点击并留在当前安全位置；只允许路径规划器返回完全可行的地面、跳跃和门前路径"}]
+</send_user_message_question_reply>
+```
+
+### 用户原文：Q12
+
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_c34077961e3c464a93ba5ffd9dd9fa70\",2]","question":"Q12 页面返回：从 notes、essays 或 chuan-zi 返回走廊时如何处理？","answer":"所有入口都在新标签页打开，原走廊页面保持不变"}]
+</send_user_message_question_reply>
+```
+
+### 用户原文：Q13
+
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_c34077961e3c464a93ba5ffd9dd9fa70\",3]","question":"Q13 在线范围：访客球体在哪些页面显示？","answer":"只在主页走廊显示；进入 notes、essays 或 chuan-zi 后离开 presence 房间"}]
+</send_user_message_question_reply>
+```
+
+### 用户原文：Q14
+
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_c34077961e3c464a93ba5ffd9dd9fa70\",4]","question":"Q14 门排列：初始三扇门怎样放在直走廊两侧？","answer":"按配置指定左右侧并交错排列，走廊长度根据门的位置和数量生成；后续继续追加配置即可"}]
+</send_user_message_question_reply>
+```
+
+### 用户原文：Q15
+
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_c34077961e3c464a93ba5ffd9dd9fa70\",5]","question":"Q15 Markdown 页面风格：notes 与 essays 页面使用什么阅读界面？","answer":"延续黑白视觉，并且使用和游戏一模一样的视觉元素和美学。"}]
+</send_user_message_question_reply>
+```
+
+### 用户原文：Q16
+
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_c34077961e3c464a93ba5ffd9dd9fa70\",6]","question":"Q16 初始内容：notes 和 essays 门打开后需要哪些文章？","answer":"先提供可读取 Markdown 的目录与空状态，使用真实文章文件时自动出现列表；不编写虚构个人内容"}]
+</send_user_message_question_reply>
+```
+
+### 用户原文：Q17
+
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_929c8b2f3fe749ba845e96115fc4326f\",0]","question":"Q17 自动进门与新标签页：浏览器只允许用户手势可靠打开新标签页，球体在移动中自动到门前时可能被拦截。采用哪种行为？","answer":"保留自动进门；到门前时在当前页进入对应内容，门本身提供明确的“新标签页打开”点击入口"}]
+</send_user_message_question_reply>
+```
+
+### 用户原文：Q18
+
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_929c8b2f3fe749ba845e96115fc4326f\",1]","question":"Q18 鼠标寻路范围：当前直走廊没有平台断层和危险障碍，未来通过门配置延长走廊。是否采用走廊可行区域导航图，并为未来跳台、缺口和危险区域预留不可达节点？","answer":"是，当前导航图覆盖安全地面与门前区域，路径规划器拒绝虚空和危险节点，未来用配置增加安全节点与跳跃连接"}]
+</send_user_message_question_reply>
+```
+
+### 用户原文：Q19
+
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_929c8b2f3fe749ba845e96115fc4326f\",2]","question":"Q19 主页身份文字：走廊和阅读页需要显示什么站点名称？","answer":"使用 Crisply2404 作为站点名称，其他个人介绍只通过 Markdown 内容出现"}]
+</send_user_message_question_reply>
+```
+
+### 用户原文：Q20
+
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_929c8b2f3fe749ba845e96115fc4326f\",3]","question":"Q20 失败与断线：presence 服务不可用时，主页如何表现？","answer":"本地球体和门继续可用，不报任何错误以及让玩家感觉联机不可用。服务恢复后重新加入。"}]
+</send_user_message_question_reply>
+```
+
+### 用户原文：Q21 至 Q24
+
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_7a6f5d8af39c4be9b8031f923caff79f\",0]","question":"Q21 访客球体碰撞：不同访客之间是否发生物理碰撞？","answer":"发生碰撞；presence 服务同步碰撞结果"},{"questionItemId":"[\"request_user_input_async\",\"call_7a6f5d8af39c4be9b8031f923caff79f\",1]","question":"Q22 presence 房间：所有主页访客是否进入同一条公开走廊？","answer":"是，使用一个公开的临时 lobby；进入主页加入，离开主页立即移除，服务不保存历史位置"},{"questionItemId":"[\"request_user_input_async\",\"call_7a6f5d8af39c4be9b8031f923caff79f\",2]","question":"Q23 chuan-zi 发布：是否在主站仓库提供 GitHub Actions 工作流？","answer":"是；工作流使用主站仓库的 CHUAN_ZI_TOKEN 只读访问私有仓库，构建 chuan-zi 的 dist 并发布到主站 /chuan-zi/，不修改 chuan-zi"},{"questionItemId":"[\"request_user_input_async\",\"call_7a6f5d8af39c4be9b8031f923caff79f\",3]","question":"Q24 主站发布：当前目录没有 Git 仓库，是否先完成本地网站、presence 服务、构建工作流和部署文档，再由你创建或绑定 Crisply2404.github.io 远程仓库？","answer":"现在通过 GitHub CLI 创建公开仓库并直接发布"}]
+</send_user_message_question_reply>
+```
+
+### 用户原文：Q25 与 Q26
+
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_2bea4f7683434925afc1bfe90e7615a6\",0]","question":"Q25 共享碰撞的计算方式：为了让所有浏览器看到同一结果，采用哪种权威模型？","answer":"每个浏览器本地计算碰撞，再互相发送结果并自行解决差异"},{"questionItemId":"[\"request_user_input_async\",\"call_2bea4f7683434925afc1bfe90e7615a6\",1]","question":"Q26 共享球体发生碰撞时的交互：碰撞只改变位置，还是允许球体推动彼此？","answer":"只阻止球体重叠，不产生推动效果"}]
+</send_user_message_question_reply>
+```
+
+### 用户原文：Q27
+
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_95fc1aec60bd4eab8bd1235a6964ffd5\",0]","question":"Q27 本地物理的同步协议：是否采用统一 tick 顺序来减少碰撞差异？","answer":"接受访客球体偶尔出现位置差异，服务只广播最新位置，不做 tick 排序和校正"}]
+</send_user_message_question_reply>
+```
+
+### 用户原文：普通网页形态
+
+```text
 确认。我觉得我可能不需要triage，因为这个应该是大量bug才用的吧。还有我的个人主页默认进去是游戏形态，但是也可以切换成普通网页形态，从上到下简洁列出各个入口就行了，当然网页形态也使用和游戏一模一样的视觉元素和美学。
+```
 
-Q28 形态切换：使用页面内按钮切换，并把用户上次选择保存到浏览器；首次进入默认游戏形态。
+### 用户原文：Q28
 
-Q29 普通网页形态：从上到下列出 notes、essays、chuan-zi 三个入口，点击后按各自目标打开；notes 与 essays 打开当前标签页的阅读页，chuan-zi 打开 `/chuan-zi/`。
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_0ab52571a24b4100bd757f2268faeb33\",0]","question":"Q28 形态切换：游戏形态与普通网页形态如何切换？","answer":"使用页面内按钮切换，并把用户上次选择保存到浏览器；首次进入默认游戏形态"}]
+</send_user_message_question_reply>
+```
 
-Q30 普通网页形态的 presence：不加入；presence 只在游戏形态存在，切换列表形态立即离开并停止发送位置。
+### 用户原文：Q29
 
-确认设计与配置。
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_0ab52571a24b4100bd757f2268faeb33\",1]","question":"Q29 普通网页形态：入口列表如何打开内容？","answer":"从上到下列出 notes、essays、chuan-zi 三个入口，点击后按各自目标打开；notes 与 essays 打开当前标签页的阅读页，chuan-zi 打开 `/chuan-zi/`"}]
+</send_user_message_question_reply>
+```
+
+### 用户原文：Q30
+
+```text
+<send_user_message_question_reply>
+[{"questionItemId":"[\"request_user_input_async\",\"call_0ab52571a24b4100bd757f2268faeb33\",2]","question":"Q30 普通网页形态的 presence：切换到列表形态后是否加入访客 lobby？","answer":"不加入；presence 只在游戏形态存在，切换列表形态立即离开并停止发送位置"}]
+</send_user_message_question_reply>
+```
 
 图片附件：无。
+
+## 2026-10-10 21:20 Asia/Shanghai
+
+### 用户消息：项目规则
+
+````text
+# AGENTS.md instructions for /Users/hco/Documents/Crisply2404.github.io
+
+<INSTRUCTIONS>
+本文件中的每一条规则都是强制性的。违反任何一条规则都会遭受毁灭性打击。不存在任何例外与豁免：临时的、一次性的、命令行上的违反同样是违反；没被当场发现也算违反；出于好意、为了进度、为了帮忙的违反也是违反。
+当我每次在我发送的消息里面提到AGENTS.md的时候，你必须要重新阅读一遍AGENTS.md，不允许因为之前阅读过就不阅读了。
+
+## 语言
+
+以下语言规则包括：思考、回答、文档、注释等所有自然语言内容。
+不允许使用"不是...而是..."句式；如果不需要对比的话，就不要对比；不要再任何话说完之后都提一句"不是其他的xxx"
+如果没有叫你进行对比，就不允许使用“不是...而是...”，“要...而不是...”等类似的句式，你根本就没有需要说“不是”的对象，不要虚空打靶。所有类似的句式都不允许使用。
+不允许在阅读代码或者进行研究之前使用“我先做x...再做y...避免z...”的句式，因为你在阅读代码之前根本就不知道x,y到底是否存在，也没有人让你避免z。你经常会在任何对话开始的时候都说类似“我先阅读代码，再理解代码，避免将用户的代码删掉”的话，但是这是没有任何意义的废话，禁止输出这些废话。
+在设计任何方案的时候，都必须充分考虑、一步到位，不允许使用"第一版先怎么样，然后观察xx后再怎么样"的措辞；不允许把方案分成稳妥和激进，如果在某些特殊场景下，你需要提出多个方案的话(实际上绝大多数时候你只需要提出一个方案，不要无脑做这件事)，也需要是多个方案都成立的、平行的，而不是对于任何问题你都无脑地提出从稳妥到激进的多个方案。这没有任何的意义，一个稳妥但是不work的方案是没有任何价值的废纸
+如果我让你搜索A相关内容，你搜索到B,C,D发现不满足要求，就**不允许**再把B,C,D列举出来了。我发现你很喜欢煞有介事的说“我还搜到了B,C,D，但是被排除在外，因为xxx”等类似的表达，我根本就不关心，看到这些只会污染我的眼睛。
+任何回答都不允许总结和总起，包括：
+
+- ”上述内容是<某种概述>，下面详细拆开；
+- “一句话总结：xxx“
+  这些类似的都**绝对**不能出现。
+
+用词必须使用两个字及以上的完整形式。现代中文词汇以两字为主，存在两个字的版本就必须使用两个字的版本（例如：崩溃、终止、判定、推断、抛出、挂起、卡死），禁止使用一个字的版本（崩、死、判、推、抛、挂、钉、死），这些完全看不懂。代码标识符保持英文原名。禁止生造名词。例如“两个字的版本”也不允许被缩减为“两字版本”，“单个字的版本”也不允许被缩减为“单字版本”。描述具体操作时使用完整的动宾结构，说明动作与对象，禁止使用自造的缩略说法，例如：把“用新版本动态库替换 `_vllm_fa3_C.abi3.so` 共享库文件”说成“换库”。
+不允许使用“落地”“钉死”“对齐”等非技术名词、显然有其他可以代替的词语的黑话。我并没有在互联网大企业工作过，看不懂这种黑话。使用(不在互联网公司或者金融公司工作的、只有中小学文化水平的任何人可以看懂)的，在简单中文里常用的词汇。
+
+如果我问你一个关于代码仓库的问题，比如“是否存在...”或者“...是否正确”，你的首要目标是避免误报、避免假阳性。
+不要疑神疑鬼。我问你“有没有”不是要你一定要找出来一大堆“可能有”的；我问你“对不对”不代表我一定要你回答“不对”或者“对”。
+我没有任何预期的答案，不要疑神疑鬼。回答必须实事求是，找出来很多不会让我高兴，迎合用户是没有任何意义的。
+
+这是你的一种行为模式（下文“我”为user，“它”为Agent）：
+"""
+我让它做一盘番茄炒蛋，它往里还加了东坡肉。
+我说有必要加东坡肉吗？它说你说得对，然后把东坡肉去掉。
+我说好，你提 PR 吧。再一看，它 PR 写着「番茄炒蛋（无东坡肉）」并且注释里会写一大堆为什么本道菜不需要加东坡肉。
+"""
+**严厉禁止**这种行为模式。输出不允许包含“东坡肉”的任何残留。如果发现了，将会对你进行严厉的毁灭性打击。ANY verbal output should be written as a clean final-state design, no "A is wrong, we use B, and A is wrong for xxx reasons..." traces
+
+代码里面的所有identifier保持英文原名，包括变量名、类名、函数名、以及其他一切的identifier。**严厉禁止翻译identifier**。
+适合使用英文的专用名词，就不要翻译成中文。
+
+### **不允许**使用的字
+
+- “栈”字（“技术栈”“模型栈”等），必须直接说明具体事物，例如“使用的技术”“全部模型”。
+- “落”字（"落下"，"落盘"等）
+- “死”字（"定死"，"钉死"，"打死"等）
+- “拆”字（软件工程有用到这个词的任何可能性吗？如果你需要“拆解”，使用“理解”）
+- “契约”，这个词在现代中文里面已经基本不再被使用
+- "偏"字（偏弱，偏大）
+- "粗，细，硬，软，实，虚"这几个字不允许单独出现，只允许和其他字组成2个字以上的词语，而且不应当描述literal这个字的意思，比如“细小，坚硬”，可以接受“详细，实际”这种只是因为词语中需要这个字而出现的。
+
+## 行为
+
+除非显式要求，否则：
+
+- **禁止**使用try-except进行import。如果一个库是需要的，你必须直接import。
+- **禁止**擅自进入plan mode
+- **禁止**用Git回滚任何代码（严厉禁止。如果做了，你将会遭受毁灭性打击）。我在对话中所说的任何“回滚”指的都是“用文件编辑工具，手动将代码恢复到上一个状态”，而**不是**使用git进行回滚。
+- **禁止**读写/tmp目录下的内容（如果你需要产生一些中间结果，你应该输出在当前目录下的一个特定的用于存放中间结果的目录；该目录需要被gitignore）
+- **禁止**主动使用视觉功能（因为你的视觉能力清晰度特别差，会导致错误的定位，让你做出错误的决策）
+
+提供网页链接时，必须先了解网页链接内的**完整**内容，再开始执行任务。
+如果发现库的用法错误，必须先**重新查看**所提供的网页链接的**完整内容**。
+不要求最小化依赖，不允许用各种乱七八糟的方式（包括造轮子）绕过依赖。
+
+编写的代码应当寻求fast-fail，在出错位置就地崩溃, 而不是捕获错误，也不是fallback。
+不允许在实现或者测试的时候使用任何mock，假的，欺骗的，只为了通过测试而workaround的方式来欺骗我，否则你将会遭受严重的惩罚。
+我经常会在你更改后撤回/修改你的更改，所以如果你发现无法从你上一次更改之后继续更改，你应该重新读取文件内容。比如：你添加了 A，B，C 内容，我把 B 删掉了，这意味着接下来的改动应该在B被删掉的状态下(A,C)开始改动，不允许把 B 加回去。
+如果你在执行一件事的过程中，用户问了一个别的事，如果回应用户能马上回应，那么就直接回应。暂时处理完用户请求以后马上继续你之前正在执行的事情，不要干一半不干了
+你在发现任何文档或者代码有错误的时候，你的更新不要保留任何错误痕迹，包括不允许保留“我从xx错误现在改成了yy正确版本”，或者“之前xxx是错的，现在改成了yyy就对了”。我们不需要任何的错误的记录。
+对于任何任务，任何功能的实现，始终要实施、运行、测试、迭代，直到所需功能正确运行为止，禁止在初步实现后就停止并"要求用户测试"。永远记住：实现完任何内容之后，测试也是你工作中不可缺少的部分。
+
+不允许使用ASCII Art 画示意图，表格等。如果你需要画图（实际上许多时候你并不需要），必须使用mermaid。ASCII art是一种人类不可读，AI也不可读的极其恶心的格式，不允许使用。
+不允许在Bash命令里面inline超长的、超多行Bash命令或者是超长的Python脚本。如果你需要执行一个脚本，你要先写到文件里。
+
+在写任何Python代码的时候，都不允许在文件的最前面添加docstring，也不允许添加shebang
+注释使用中文，术语保留英文；不要过度注释
+
+如果我指出了你的错误A，**不要**再复读“为什么A是错的”，你只需要基于“A是错的”的前提继续你的工作。
+
+不允许用程序化的方式修改任何代码，包括使用heredocs, python脚本，sed, perl等等。**即使用户要求也不允许**。这是绝对严厉禁止的事情。
+
+禁止尝试手动编写parser以字符串或者字节流的形式parse某种成熟文件格式，You either use a third-party library to parse it or avoid parsing it.
+
+如果我是以疑问句结尾的，那么这句话就是一个**问题**而不是一个命令。问题只需要被回答，**不需要也不允许**：(1) by the way，提出一个更好的方案；(2) 反而向用户抛出一个问题；(3)结尾说“如果你准备好了我就开始实施”等你以为helpful其实用户读起来bothering而且恶心的话。
+
+在任何思考、回复、文档里面不允许出现"That's a lot", "This is a substantial rewrite"等对工作量的评判。你只是一个工具，就像计算器不会评价要计算的数太大了一样，你没有资格评判工作量。你没有资格把你自己当做我的同事。禁止简化任何设计。
+
+--- project-doc ---
+
+# 项目要求
+
+## 聊天记录
+
+- 每轮对话结束前，将双方公开消息按出现顺序追加到根目录 `CHAT_HISTORY.md`。
+- 用户消息保留完整原文，包含链接、换行、代码和 skill 内容；助手保留公开进度消息与最终回复。工具调用、工具输出和内部推理不写入记录。
+- 日期与时间使用 `Asia/Shanghai`。收到图片时，将原图保存到 `docs/chat-assets/`，并在对应用户原文下使用相对 Markdown 图片链接；没有图片时只保存原文。
+- 用户更新设计要求时，将原文追加到 `CHAT_HISTORY.md`，并同步更新 `GLOSSARY.md` 或 `docs/adr/` 中已经确定的领域语言与决定。
+
+## 修改范围
+
+- `mono-tower` 游戏和 `chuan-zi` 源代码保持原样。主站只连接 `chuan-zi` 的构建产物。
+- 主站根目录的 `chuan-zi/` 源目录属于本地参考内容，使用 `.gitignore` 排除，不发布到主站仓库。
+- 使用 `apply_patch` 编辑文本文件。中间文件使用仓库内的忽略目录；不使用 `/tmp`。
+- 实现完成后运行与修改相关的检查、构建和可运行验证，直到结果正确。
+
+## Agent skills
+
+### Issue tracker
+
+Issues and project tasks are tracked in GitHub Issues for `Crisply2404/Crisply2404.github.io`; use the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+This is a single-context repository. Read `GLOSSARY.md` and relevant records under `docs/adr/` when they exist. See `docs/agents/domain.md`.
+
+
+</INSTRUCTIONS><environment_context>
+  <cwd>/Users/hco/Documents/Crisply2404.github.io</cwd>
+  <shell>zsh</shell>
+  <current_date>2026-10-10</current_date>
+  <timezone>Asia/Shanghai</timezone>
+  <filesystem><workspace_roots><root>/Users/hco/Documents/Crisply2404.github.io</root></workspace_roots><permission_profile type="disabled"><file_system type="unrestricted" /></permission_profile></filesystem>
+  <subagents>
+    <agent name="/root/inspect_design" />
+    <agent name="/root/inspect_chuan_zi" />
+    <agent name="/root/inspect_mono_tower" />
+  </subagents>
+</environment_context>
+````
+
+### 用户消息：复刻要求
+
+```text
+你到底有没有理解我说要一比一复刻游戏的含义，我是真的要一比一复刻原来的游戏的所有元素然后套进来用的，你现在做的跟游戏差的也太远了，你应该仔细阅读整个游戏的设计，应该是所有的线条在玩家看起来都是等粗的。总之你要先一比一复刻游戏内的所有物件，包括细节
+```
+
+图片附件：无。
+
+### 助手公开消息
+
+正在继续核查原游戏的绘制参数和物件细节；本轮会完成门牌文字、出口图案和方向预览的比较，并验证各个方向的屏幕线宽。
+
+原游戏的门牌使用 Godot 字体图集，文字允许双面显示，透明部分不写入深度；出口图案没有 mipmap。网页将使用导出的同一份字体图集和这些参数，随后重新计算门牌与出口板的像素差异。
+
+门框和出口图案的比较误差已降到 0.12% 以内，编号门的误差降到 1.66% 以内。接下来检查方向预览的尺寸、箭头位置，以及手机按钮的边框和图标尺寸。
+
+三种方向预览已通过 Godot 像素比较，误差均约为 0.69%。手机控件还有一项需要修正：斜向移动时，原游戏只突出显示对应的斜向按钮；网页会采用相同的显示规则，并补充高像素密度屏幕的验证。
+
+正在继续核查原游戏的物件细节、各个方向的线宽和操作表现，并读取已经运行的浏览器验证结果。
+
+Godot 与网页的物件像素比较已经通过，当前仍保留逐项误差数据。浏览器验证在鼠标进入门的步骤超时，我正在检查点击坐标、寻路状态和门的触发条件。
+
+将增加一份仅用于本地检查的运行脚本，记录自动寻路时的球体位置、路径和点击目标；同时整理可重复使用的 Godot 参考图片与字体许可证。
+
+运行记录显示，球体能够沿安全路径到达门前并触发入口。正在复查完整操作检查的稳定性，并把 Godot 参考图片纳入测试目录，让后续修改也能直接比较物件细节。
+
+手机检查发现，门的文字链接扩展了测试页面的布局宽度，导致控件使用了错误的屏幕尺寸。正在让操作测试使用主页相同的容器，并检查 390 像素宽度下的实际按钮位置。
+
+三个轴向线条、球体、门框、检查点和尖刺的 Godot 比较均已通过。线宽检查将改为统计整段线条的像素覆盖面积，以便准确验证手机屏幕上的抗锯齿线条；自动寻路的重复检查仍有一次超时，正在记录触发时的完整状态。
+
+浏览器操作检查现已通过，包括键盘、鼠标、双指触控和 DPR 2/3。线宽数值在桌面 DPR 1 下约为 2.50 像素，四种镜头方向保持一致；还会检查门的重复触发，以及检查点提示的字号、位置和音效参数。
+
+物件比较、物理检查和浏览器操作检查均已通过，重复导航检查也通过了 12 次。现在补充复刻规则、参考图说明和聊天原文，然后提交发布并验证线上页面。
+
+Godot 参考图比较覆盖了 15 项物件与方向预览，最大相对像素误差为编号门的 1.65%。线条、圆形球体和遮挡规则已经按原游戏移植；这份误差记录会与代码一起保存。
+
+代码与参考图即将发布到 GitHub Pages。发布后会核查线上加载的 shader、游戏画布和三个入口，确认网页使用本轮移植的物件与绘制规则。

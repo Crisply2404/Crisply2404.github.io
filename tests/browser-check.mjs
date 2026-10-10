@@ -59,8 +59,10 @@ console.log('阅读页固定站点名称、分类标题尺寸和主页返回检�
 await page.goto('http://localhost:5174/tests/game.html');
 await page.waitForFunction(() => window.game?.player.grounded);
 assert.equal(await page.locator('.door-links').count(), 0);
-assert.equal(await page.locator('.game-hint').textContent(),
-  'WASD: Move · Space: Jump · Q / E or ← / →: Rotate view · Tab: Switch control mode · Click the floor: Move');
+assert.equal(await page.locator('.tutorial-input').count(), 5);
+assert.deepEqual(await page.locator('.tutorial-wasd kbd').allTextContents(), ['W', 'A', 'S', 'D']);
+assert.equal(await page.locator('.tutorial-mouse').count(), 1);
+assert.equal(await page.locator('[data-control="mode"]').getAttribute('aria-label'), 'Tab: Switch control mode');
 const state = () => page.evaluate(() => {
   const game = window.game;
   return { x: game.player.pos.x, y: game.player.pos.y, z: game.player.pos.z, angle: game.targetCameraAngle,
@@ -111,7 +113,7 @@ await page.waitForTimeout(100);
 assert.deepEqual(await page.evaluate(() => window.routes), ['/notes/']);
 await page.keyboard.press('Tab');
 assert.equal(await page.locator('.control-preview').isVisible(), true);
-await page.waitForSelector('.game-hint', { state: 'detached' });
+await page.waitForSelector('.control-tutorial', { state: 'detached' });
 assert.deepEqual(errors, []);
 console.log('真实键盘移动、镜头旋转、跳跃、鼠标寻路和自动进入门检查通过。');
 await page.close();
@@ -159,6 +161,15 @@ for (const collection of ['notes', 'essays']) {
   assert.deepEqual(title, mobileTitle, `Mobile ${collection} site title moved`);
 }
 console.log('桌面与手机列表页、notes 和 essays 的站点名称坐标检查通过。');
+for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }, { width: 320, height: 568 }, { width: 844, height: 390 }]) {
+  const tutorial = await browser.newPage({ viewport });
+  tutorial.on('pageerror', (error) => errors.push(error.message));
+  await tutorial.goto('http://localhost:5174/tests/tutorial.html');
+  await tutorial.waitForFunction(() => typeof window.runTutorialChecks === 'function');
+  const result = await tutorial.evaluate(() => window.runTutorialChecks());
+  console.log(JSON.stringify({ viewport, tutorial: result }));
+  await tutorial.close();
+}
 for (const deviceScaleFactor of [2, 3]) {
   const dense = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor });
   dense.on('pageerror', (error) => errors.push(error.message));

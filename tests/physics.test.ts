@@ -75,6 +75,19 @@ test('连续走廊从当前位置直接走向点击目标', () => {
   assert.equal(path[0].jump, false);
 });
 
+test('球体接近平台表面时恢复接触距离并完成点击路径', () => {
+  const physics = new PhysicsEngine(corridorBlocks()), player = new PlayerState();
+  const target = new THREE.Vector3(0.1764507671721276, 40.02, -98.76803728024674);
+  player.place(new THREE.Vector3(0.1753544913023949, 40.007695481330096, -98.03967998600042));
+  player.vel.set(0.0010364801307356072, 0.00002242943697761124, -0.7283373623333234);
+  for (let tick = 0; tick < 30; tick += 1) assert.ok(physics.step(player, navigationForce(player.pos, player.vel, target)));
+  assert.ok(player.pos.clone().sub(target).setY(0).length() < 0.5, `Target distance ${player.pos.distanceTo(target)}`);
+  player.place(new THREE.Vector3(0, 39.359764850372656, 40));
+  for (let tick = 0; tick < 10; tick += 1) physics.step(player, zero);
+  assert.ok(player.grounded && Math.abs(player.pos.y - 40.01) < 0.04, `Supported height ${player.pos.y}`);
+  physics.dispose();
+});
+
 test('复杂地形选择安全的最短行走路线', () => {
   const blocks: BlockData[] = [];
   for (let gx = -4; gx <= 4; gx += 1) for (let gz = -4; gz <= 4; gz += 1) {

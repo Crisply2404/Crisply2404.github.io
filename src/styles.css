@@ -95,25 +95,118 @@ a {
   color: #8c8c8c;
 }
 
-.game-hint {
+.control-tutorial {
   position: absolute;
   top: 76px;
   left: 50%;
   transform: translateX(-50%);
-  width: min(780px, calc(100% - 40px));
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.7;
-  text-align: center;
+  width: min(860px, calc(100% - 40px));
+  background: black;
+  color: white;
   pointer-events: none;
-  margin: 0;
-  animation: hint-fade 8s linear forwards;
+  opacity: 0;
 }
 
-@keyframes hint-fade {
-  0%, 75% { opacity: 1; }
-  100% { opacity: 0; }
+.tutorial-canvas {
+  display: block;
+  width: 100%;
+  height: clamp(48px, 15vw, 128px);
+}
+
+.tutorial-inputs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  padding-bottom: 6px;
+}
+
+.tutorial-input {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 58px;
+}
+
+.tutorial-input kbd {
+  display: grid;
+  place-items: center;
+  width: clamp(15px, 2.8vw, 24px);
+  height: clamp(15px, 2.8vw, 24px);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 2px;
+  font: 600 clamp(9px, 1.6vw, 12px) 'Mono Tower', sans-serif;
+}
+
+.tutorial-input .is-active {
+  color: black;
+  background: white;
+}
+
+.tutorial-input .tutorial-wide-key {
+  width: clamp(40px, 6.6vw, 64px);
+}
+
+.tutorial-wasd {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+}
+
+.tutorial-wasd [data-key='w'] {
+  grid-column: 2;
+}
+
+.tutorial-wasd [data-key='a'] {
+  grid-column: 1;
+}
+
+.tutorial-rotation-keys {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 3px;
+}
+
+.tutorial-tab {
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tutorial-modes {
+  display: flex;
+  gap: 6px;
+}
+
+.tutorial-modes i {
+  width: 5px;
+  height: 5px;
+  border: 1px solid white;
+  border-radius: 50%;
+}
+
+.tutorial-mouse {
+  position: relative;
+  width: clamp(18px, 3vw, 24px);
+  height: clamp(28px, 4.5vw, 36px);
+  overflow: hidden;
+  border: 1.5px solid white;
+  border-radius: 12px;
+}
+
+.tutorial-mouse-button {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 45%;
+  border-right: 1px solid white;
+  border-bottom: 1px solid white;
+}
+
+.tutorial-mouse-wheel {
+  position: absolute;
+  left: calc(50% - 1px);
+  top: 4px;
+  height: 5px;
+  border-left: 2px solid white;
 }
 
 .control-preview {
@@ -360,9 +453,18 @@ a {
 }
 
 @media (max-width: 599px) {
-  .game-hint {
+  .control-tutorial {
     top: 72px;
-    font-size: 12px;
+    width: calc(100% - 24px);
+  }
+
+  .tutorial-input {
+    height: 42px;
+  }
+
+  .tutorial-wasd,
+  .tutorial-rotation-keys {
+    gap: 2px;
   }
 
   .control-preview {

@@ -9,6 +9,7 @@ import transparentExitSign from './icons/exit_sign.svg';
 import font32 from './assets/font-32-0.png';
 import font64 from './assets/font-64-0.png';
 import fontMetrics from './assets/font-metrics.json';
+import { DoorTitle } from './door-title';
 
 const flagCorners = [new THREE.Vector3(0, 30, 0), new THREE.Vector3(17, 25, 0), new THREE.Vector3(0, 19, 0)];
 
@@ -17,6 +18,7 @@ export class VisualBuilder {
   private readonly textures = new Set<THREE.Texture>();
   private readonly textureLoads: Promise<void>[] = [];
   private readonly fontTextures = new Map<number, THREE.Texture>();
+  private readonly doorTitles = new Set<DoorTitle>();
   public constructor(public readonly rendering: MonoRenderer) {}
 
   public createLevelMesh(blocks: readonly BlockData[], roundCaps = true): THREE.Group {
@@ -142,7 +144,10 @@ export class VisualBuilder {
     group.add(panel);
     group.add(this.createGateFrame());
     if (graphics) {
-      if (graphics.title) group.add(this.createDoorTitle(graphics.title));
+      if (graphics.title) {
+        const title = new DoorTitle(graphics.title);
+        this.doorTitles.add(title); this.textureLoads.push(title.loaded); group.add(title);
+      }
       const symbol = this.createDoorGraphic(graphics.symbol, 38);
       symbol.name = 'DoorSymbol'; symbol.position.y = 36;
       symbol.material = this.rendering.doorSymbol;
@@ -155,30 +160,6 @@ export class VisualBuilder {
       group.add(face);
     }
     return group;
-  }
-
-  private createDoorTitle(text: string): THREE.Mesh {
-    const geometry = this.createFontGeometry(text, 64, 1, 6);
-    geometry.computeBoundingBox();
-    const bounds = geometry.boundingBox!;
-    const center = bounds.getCenter(new THREE.Vector3());
-    const scale = 14 / bounds.getSize(new THREE.Vector3()).y;
-    geometry.translate(-center.x, -center.y, 0);
-    geometry.scale(scale, scale, 1);
-    const label = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
-      map: this.loadFontTexture(64), transparent: true, toneMapped: false, depthWrite: false, side: THREE.DoubleSide,
-    }));
-    label.name = 'DoorTitle'; label.position.y = 91;
-    const cameraPosition = new THREE.Vector3();
-    const inverseGate = new THREE.Matrix4();
-    label.onBeforeRender = (_renderer, _scene, camera): void => {
-      camera.getWorldPosition(cameraPosition).applyMatrix4(inverseGate.copy(label.parent!.matrixWorld).invert());
-      // 使用同一份字体图形，背面保持正常阅读方向。
-      label.scale.x = cameraPosition.z < 0 ? -1 : 1;
-      label.updateMatrix();
-      label.updateWorldMatrix(false, false);
-    };
-    return label;
   }
 
   private createDoorGraphic(source: string, height: number): THREE.Mesh {
@@ -217,7 +198,7 @@ export class VisualBuilder {
     }
   }
 
-  private createFontGeometry(text: string, fontSize: number, pixelSize: number, gap?: number): THREE.BufferGeometry {
+  private createFontGeometry(text: string, fontSize: number, pixelSize: number): THREE.BufferGeometry {
     if (fontSize !== 32 && fontSize !== 64) throw new Error('Unsupported MONO TOWER font size');
     const font = fontMetrics[String(fontSize) as '32' | '64'];
     const glyphs = font.glyphs as Record<string, { advance: number; offset: number[]; size: number[]; rect: number[]; texture: number }>;
@@ -226,9 +207,7 @@ export class VisualBuilder {
     const advances = characters.map((character, index) => {
       const glyph = glyphs[character];
       if (!glyph || glyph.texture > 0) throw new Error(`Unsupported MONO TOWER glyph: ${character}`);
-      return gap === undefined
-        ? glyph.advance - (kerning[character + (characters[index + 1] ?? '')] ?? 0)
-        : glyph.size[0] + (index < characters.length - 1 ? gap : 0);
+      return glyph.advance - (kerning[character + (characters[index + 1] ?? '')] ?? 0);
     });
     let x = -advances.reduce((sum, advance) => sum + advance, 0) / 2;
     const baseline = font.height / 2 - font.ascent;
@@ -237,7 +216,7 @@ export class VisualBuilder {
     const uvs: number[] = [];
     for (const [index, character] of characters.entries()) {
       const glyph = glyphs[character];
-      const left = x + (gap === undefined ? glyph.offset[0] : 0), top = baseline - glyph.offset[1];
+      const left = x + glyph.offset[0], top = baseline - glyph.offset[1];
       const right = left + glyph.size[0], bottom = top - glyph.size[1];
       const [u, v, width, glyphHeight] = glyph.rect;
       for (const [px, py, tu, tv] of [
@@ -281,6 +260,7 @@ export class VisualBuilder {
 
   public dispose(): void {
     this.materialBlack.dispose();
+    for (const title of this.doorTitles) title.dispose();
     for (const texture of this.textures) texture.dispose();
   }
 

@@ -87,6 +87,14 @@ export class PhysicsEngine {
       if (this.hazards.has(hit.collider.handle)) return false;
       player.pos.addScaledVector(motion, hit.time_of_impact);
       const normal = new THREE.Vector3(hit.normal1.x, hit.normal1.y, hit.normal1.z).normalize();
+      // 恢复球体与表面的接触距离，保持沿表面的连续移动。
+      if (hit.time_of_impact === 0) {
+        const contact = hit.collider.contactShape(this.sphere, player.pos, this.rotation, PHYSICS.safeMargin);
+        if (contact && contact.distance < PHYSICS.safeMargin) {
+          normal.set(contact.normal1.x, contact.normal1.y, contact.normal1.z).normalize();
+          player.pos.addScaledVector(normal, PHYSICS.safeMargin - contact.distance);
+        }
+      }
       if (normal.y > 0.7 && player.vel.y <= 0) {
         grounded = true;
         this.contactPosition.set(hit.witness1.x, hit.witness1.y, hit.witness1.z);

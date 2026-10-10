@@ -3,24 +3,41 @@ import { CONFIG, movementDirection, type WasdOrientation } from './config';
 import { VisualBuilder } from './objects';
 import { MonoRenderer } from './renderer';
 
+export class ControlDiagram extends THREE.Group {
+  private readonly arrow = new THREE.Group();
+
+  public constructor(builder: VisualBuilder) {
+    super();
+    this.name = 'ControlDiagram';
+    const tiles = [[0, 0], [-1, 0], [0, -1], [1, 0], [0, 1]];
+    this.add(builder.createLevelMesh(tiles.map(([gx, gz]) => ({ gx, gy: 0, gz, type: 'standard' })), false));
+    const polygon = new THREE.Shape([new THREE.Vector2(0, -15), new THREE.Vector2(11, -2), new THREE.Vector2(5, -2),
+      new THREE.Vector2(5, 13), new THREE.Vector2(-5, 13), new THREE.Vector2(-5, -2), new THREE.Vector2(-11, -2)]);
+    const fill = new THREE.Mesh(new THREE.ShapeGeometry(polygon), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }));
+    fill.rotation.x = Math.PI / 2;
+    this.arrow.name = 'DirectionArrow'; this.arrow.add(fill); this.add(this.arrow);
+  }
+
+  public setDirection(orientation: WasdOrientation, angle: number): void {
+    const [x, z] = movementDirection(0, -1, angle, orientation);
+    this.arrow.rotation.y = Math.atan2(-x, -z);
+    this.arrow.position.set(orientation === 2 ? 0 : x * 40, 20.8, orientation === 2 ? 0 : z * 40);
+  }
+}
+
 export class ControlPreview {
   private readonly canvas = document.createElement('canvas');
   private readonly rendering = new MonoRenderer(this.canvas);
   private readonly builder = new VisualBuilder(this.rendering);
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 5000);
-  private readonly arrow = new THREE.Group();
+  private readonly diagram = new ControlDiagram(this.builder);
   private remaining = 0;
   private orientation: WasdOrientation = 0;
 
   public constructor(root: HTMLElement) {
     this.canvas.className = 'control-preview'; this.canvas.hidden = true; root.append(this.canvas);
-    const tiles = [[0, 0], [-1, 0], [0, -1], [1, 0], [0, 1]];
-    this.scene.add(this.builder.createLevelMesh(tiles.map(([gx, gz]) => ({ gx, gy: 0, gz, type: 'standard' })), false));
-    const polygon = new THREE.Shape([new THREE.Vector2(0, -15), new THREE.Vector2(11, -2), new THREE.Vector2(5, -2),
-      new THREE.Vector2(5, 13), new THREE.Vector2(-5, 13), new THREE.Vector2(-5, -2), new THREE.Vector2(-11, -2)]);
-    const fill = new THREE.Mesh(new THREE.ShapeGeometry(polygon), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }));
-    fill.rotation.x = Math.PI / 2; this.arrow.add(fill); this.scene.add(this.arrow);
+    this.scene.add(this.diagram);
   }
 
   public show(orientation: WasdOrientation): void { this.orientation = orientation; this.remaining = 1.8; this.canvas.hidden = false; }
@@ -45,14 +62,17 @@ export class ControlPreview {
     this.camera.left = -width * unitsPerPixel / 2; this.camera.right = -this.camera.left;
     this.camera.top = height * unitsPerPixel / 2; this.camera.bottom = -this.camera.top; this.camera.updateProjectionMatrix();
     this.camera.quaternion.copy(sourceCamera.quaternion); this.camera.position.set(0, 0, 1000).applyQuaternion(this.camera.quaternion);
-    const [x, z] = movementDirection(0, -1, angle, this.orientation);
-    this.arrow.rotation.y = Math.atan2(-x, -z);
-    this.arrow.position.set(this.orientation === 2 ? 0 : x * 40, 20.8, this.orientation === 2 ? 0 : z * 40);
+    this.diagram.setDirection(this.orientation, angle);
     this.rendering.render(this.scene, this.camera);
   }
 
   public dispose(): void {
-    this.scene.traverse((object) => { if (object instanceof THREE.Mesh) object.geometry.dispose(); });
+    this.scene.traverse((object) => {
+      if (object instanceof THREE.Mesh) {
+        object.geometry.dispose();
+        for (const material of Array.isArray(object.material) ? object.material : [object.material]) material.dispose();
+      }
+    });
     this.builder.dispose(); this.rendering.dispose(); this.canvas.remove();
   }
 }

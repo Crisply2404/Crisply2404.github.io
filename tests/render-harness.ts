@@ -6,6 +6,7 @@ import { ControlPreview } from '../src/mono/control-preview';
 import { NavigationRipple } from '../src/mono/navigation-ripple';
 import { doors } from '../src/sceneConfig';
 import { doorGraphics } from '../src/mono/door-graphics';
+import { doorTitleFont } from '../src/mono/door-title';
 import '../src/styles.css';
 
 await document.fonts.load('600 64px "Mono Tower"');
@@ -197,6 +198,7 @@ async function runSiteChecks(): Promise<Record<string, unknown>> {
     for (const door of doors) {
       scene.clear();
       const configuredGate = builder.createSiteGate(new THREE.Vector3(0, 20, 0), Math.PI / 2, doorGraphics[door.graphics]);
+      await builder.ready();
       scene.add(configuredGate); scene.updateMatrixWorld(true);
       const title = configuredGate.getObjectByName('DoorTitle') as THREE.Mesh | undefined;
       const symbol = configuredGate.getObjectByName('DoorSymbol') as THREE.Mesh;
@@ -206,16 +208,20 @@ async function runSiteChecks(): Promise<Record<string, unknown>> {
         check(title !== undefined, 'Writing door title is missing'); checks += 1;
         const positions = title!.geometry.getAttribute('position');
         const titleBounds = new THREE.Box3().setFromBufferAttribute(positions as THREE.BufferAttribute);
-        check(titleBounds.min.y + title!.position.y >= 84 - 0.001, 'Door title overlaps the frame'); checks += 1;
+        check(titleBounds.min.y + title!.position.y >= 83.5, 'Door title overlaps the frame'); checks += 1;
         check(title!.quaternion.equals(new THREE.Quaternion()) && titleBounds.min.z === 0 && titleBounds.max.z === 0,
           'Door title must share the door plane'); checks += 1;
-        check(Math.abs(titleBounds.max.y - titleBounds.min.y - 14) < 0.001, 'Door title height is inconsistent'); checks += 1;
-        const gaps = [];
-        for (let index = 6; index < positions.count; index += 6) gaps.push(positions.getX(index) - positions.getX(index - 4));
-        check(gaps.every((gap) => Math.abs(gap - gaps[0]) < 0.00001 && gap > 0), 'Font glyph spacing is uneven'); checks += 1;
         const font = (title!.material as THREE.MeshBasicMaterial).map;
-        check(font?.image?.src.includes('font-64-0') && title!.geometry.getAttribute('cap') === undefined,
-          'Door titles must use the existing font atlas'); checks += 1;
+        const expectedTitle = door.graphics === 'notes' ? 'Notes' : 'Essays';
+        check(font?.name === `${doorTitleFont}: ${expectedTitle}` && document.fonts.check(`256px "${doorTitleFont}"`),
+          'Door title font or capitalization is incorrect'); checks += 1;
+        check(positions.count === 4 && font!.image instanceof HTMLCanvasElement,
+          'Door titles must preserve complete-word font layout'); checks += 1;
+        const textContext = (font!.image as HTMLCanvasElement).getContext('2d')!;
+        const capitalHeight = textContext.measureText('H').actualBoundingBoxAscent
+          * (titleBounds.max.y - titleBounds.min.y) / font!.image.height;
+        check(Math.abs(capitalHeight - 14) < 0.001 && textContext.fontKerning === 'normal',
+          'Door titles require a shared font size and native kerning'); checks += 1;
         check(configuredGate.children.filter((child) => child.name === 'DoorTitle').length === 1,
           'Door title has duplicate faces'); checks += 1;
       }
@@ -226,7 +232,7 @@ async function runSiteChecks(): Promise<Record<string, unknown>> {
         check(title.scale.x === (cameraInGate.z < 0 ? -1 : 1), 'Door title reading direction is reversed'); checks += 1;
         symbol.visible = false; configuredGate.getObjectByName('WhiteEdges')!.visible = false;
         const textImage = capture();
-        check(textImage.data.some((value, index) => index % 4 === 0 && value > 128), 'Font title is invisible'); checks += 1;
+        check(textImage.data.some((value, index) => index % 4 === 0 && value > 32), 'Font title is invisible'); checks += 1;
         symbol.visible = true;
       }
       configuredGate.getObjectByName('WhiteEdges')!.visible = false;

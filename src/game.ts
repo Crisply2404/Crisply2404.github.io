@@ -10,6 +10,7 @@ import { PhysicsEngine, PlayerState, physicsReady } from './mono/physics';
 import { SafetyNavigationGraph, navigationForce } from './mono/navigation';
 import { MobileControls } from './mono/mobile';
 import { ControlPreview } from './mono/control-preview';
+import { ControlTutorial } from './mono/control-tutorial';
 import { NavigationRipple } from './mono/navigation-ripple';
 
 type KeyName = 'w' | 'a' | 's' | 'd' | 'q' | 'e' | 'r' | ' ';
@@ -36,6 +37,7 @@ export class GameScene {
   private floorObjects!: THREE.Group;
   private readonly mobile: MobileControls;
   private readonly controlPreview: ControlPreview;
+  private readonly controlTutorial: ControlTutorial;
   private readonly touchKeys = new Set<string>();
   private animationFrame = 0;
   private previousTime = performance.now();
@@ -60,6 +62,7 @@ export class GameScene {
     if (![0, 1, 2].includes(stored)) throw new Error('Invalid WASD orientation');
     this.orientation = stored as WasdOrientation;
     this.controlPreview = new ControlPreview(root);
+    this.controlTutorial = new ControlTutorial(root);
     this.buildScene(); this.installInput();
     this.presence = new PresenceClient(import.meta.env.VITE_PRESENCE_WS_URL as string | undefined, (avatars) => this.receiveAvatars(avatars));
     this.mobile = new MobileControls(root, (action, pressed) => {
@@ -76,7 +79,7 @@ export class GameScene {
 
   public destroy(): void {
     this.destroyed = true; this.listenerAbort.abort(); this.presence.destroy(); window.cancelAnimationFrame(this.animationFrame);
-    this.mobile.dispose(); this.controlPreview.dispose(); this.physics.dispose();
+    this.mobile.dispose(); this.controlPreview.dispose(); this.controlTutorial.dispose(); this.physics.dispose();
     this.scene.traverse((object) => {
       if (object instanceof THREE.Mesh) {
         object.geometry.dispose();
@@ -103,10 +106,6 @@ export class GameScene {
     this.scene.add(exit);
     this.localAvatar.position.copy(spawn); this.scene.add(this.localAvatar);
     this.player.place(spawn);
-    const hint = document.createElement('p'); hint.className = 'game-hint';
-    hint.textContent = 'WASD: Move · Space: Jump · Q / E or ← / →: Rotate view · Tab: Switch control mode · Click the floor: Move';
-    this.root.append(hint);
-    hint.addEventListener('animationend', () => hint.remove(), { signal: this.listenerAbort.signal });
   }
 
   private addDoor(door: DoorConfig): void {
@@ -230,6 +229,7 @@ export class GameScene {
     this.ripple.update(delta); this.scene.updateMatrixWorld(true);
     this.rendering.render(this.scene, this.camera);
     this.controlPreview.update(this.camera, this.targetCameraAngle, delta, this.root.clientHeight);
+    this.controlTutorial.update(delta);
   }
 
   private receiveAvatars(avatars: Map<string, AvatarState>): void {

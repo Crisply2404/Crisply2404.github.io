@@ -11,9 +11,9 @@ export const corridorFloorY = 20;
 export const corridorStartZ = 100;
 
 export const doors: DoorConfig[] = [
-  { id: 'notes', title: 'NOTES', path: '/notes/', side: 'left', z: -160, accent: '#ffffff',
+  { id: 'notes', title: 'Notes', path: '/notes/', side: 'left', z: -160, accent: '#ffffff',
     graphics: 'notes' },
-  { id: 'essays', title: 'ESSAYS', path: '/essays/', side: 'right', z: -400, accent: '#ffffff',
+  { id: 'essays', title: 'Essays', path: '/essays/', side: 'right', z: -400, accent: '#ffffff',
     graphics: 'essays' },
   { id: 'chuan-zi', title: '击鼓传字', path: '/chuan-zi/', side: 'left', z: -640, accent: '#ffffff',
     graphics: 'chuan-zi' },

@@ -10,6 +10,7 @@
     "check": "tsc --noEmit",
     "test": "tsx --test tests/physics.test.ts",
     "test:browser": "node tests/browser-check.mjs",
+    "test:view": "node tests/view-check.mjs",
     "test:reference": "node tests/reference-check.mjs"
   },
   "dependencies": {

@@ -6,7 +6,7 @@ import { ControlPreview } from '../src/mono/control-preview';
 import { NavigationRipple } from '../src/mono/navigation-ripple';
 import { doors } from '../src/sceneConfig';
 import { doorGraphics } from '../src/mono/door-graphics';
-import { doorTitleFont } from '../src/mono/door-title';
+import { doorTitleFont, doorTitleFontWeight } from '../src/mono/door-title';
 import '../src/styles.css';
 
 await document.fonts.load('600 64px "Mono Tower"');
@@ -227,7 +227,8 @@ async function runSiteChecks(): Promise<Record<string, unknown>> {
           'Door title must share the door plane'); checks += 1;
         const font = (title!.material as THREE.MeshBasicMaterial).map;
         const expectedTitle = door.graphics === 'notes' ? 'Notes' : 'Essays';
-        check(font?.name === `${doorTitleFont()}: ${expectedTitle}` && document.fonts.check(`400 256px ${doorTitleFont()}`),
+        check(font?.name === `${doorTitleFontWeight()} 256px ${doorTitleFont()}: ${expectedTitle}`
+          && document.fonts.check(`${doorTitleFontWeight()} 256px ${doorTitleFont()}`),
           'Door title font or capitalization is incorrect'); checks += 1;
         check(positions.count === 4 && font!.image instanceof HTMLCanvasElement,
           'Door titles must preserve complete-word font layout'); checks += 1;
@@ -235,7 +236,7 @@ async function runSiteChecks(): Promise<Record<string, unknown>> {
         const capitalHeight = textContext.measureText('H').actualBoundingBoxAscent
           * (titleBounds.max.y - titleBounds.min.y) / font!.image.height;
         const titleFont = document.createElement('canvas').getContext('2d')!;
-        titleFont.font = `400 256px ${getComputedStyle(document.documentElement).fontFamily}`;
+        titleFont.font = `${doorTitleFontWeight()} 256px ${getComputedStyle(document.documentElement).fontFamily}`;
         check(Math.abs(capitalHeight - 14) < 0.001 && textContext.fontKerning === 'normal'
           && textContext.font === titleFont.font && textContext.letterSpacing === '0px',
           'Door titles require a shared font size and native kerning'); checks += 1;

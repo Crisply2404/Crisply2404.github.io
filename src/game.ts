@@ -41,6 +41,7 @@ export class GameScene {
   private readonly controlTutorial: ControlTutorial;
   private readonly canvasNavigation: CanvasNavigation;
   private readonly viewOffset = new THREE.Vector3();
+  private readonly touchView = matchMedia('(pointer: coarse)').matches;
   private animationFrame = 0;
   private previousTime = performance.now();
   private accumulator = 0;
@@ -60,9 +61,7 @@ export class GameScene {
     this.canvas = document.createElement('canvas'); this.canvas.className = 'scene-canvas'; this.root.append(this.canvas);
     this.rendering = new MonoRenderer(this.canvas); this.visualBuilder = new VisualBuilder(this.rendering);
     this.localAvatar = this.visualBuilder.createPlayerMesh();
-    const stored = Number(localStorage.getItem('mono-wasd-orientation') ?? 2);
-    if (![0, 1, 2].includes(stored)) throw new Error('Invalid WASD orientation');
-    this.orientation = stored as WasdOrientation;
+    this.camera.zoom = this.touchView ? 1.5 : 1;
     this.controlPreview = new ControlPreview(root);
     this.controlTutorial = new ControlTutorial(root);
     this.buildScene(); this.installInput();
@@ -123,7 +122,6 @@ export class GameScene {
       if (event.repeat) return;
       if (event.key === 'Tab') {
         event.preventDefault(); this.orientation = controlModeOrder[(controlModeOrder.indexOf(this.orientation) + 1) % controlModeOrder.length];
-        localStorage.setItem('mono-wasd-orientation', String(this.orientation));
         this.resetInput(); this.controlPreview.show(this.orientation); return;
       }
       const key = keyMap[event.key.toLowerCase()]; if (!key) return; event.preventDefault();
@@ -155,14 +153,37 @@ export class GameScene {
 
   private readonly applyViewGesture = (gesture: ViewGesture): void => {
     const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), -this.player.pos.y);
-    const before = this.screenRay(gesture.previousCenter).ray.intersectPlane(ground, new THREE.Vector3());
-    this.camera.zoom = THREE.MathUtils.clamp(this.camera.zoom * gesture.scale, 0.5, 3);
+    const onGround = (point: THREE.Vector2): THREE.Vector3 => {
+      const ray = this.screenRay(point).ray;
+      return ray.at(-ground.distanceToPoint(ray.origin) / ground.normal.dot(ray.direction), new THREE.Vector3());
+    };
+    const before = onGround(gesture.previousCenter);
+    this.camera.zoom = THREE.MathUtils.clamp(this.camera.zoom * gesture.scale, 1, 3);
     this.camera.updateProjectionMatrix();
-    const after = this.screenRay(gesture.center).ray.intersectPlane(ground, new THREE.Vector3());
-    if (!before || !after) throw new Error('View gesture requires a ground intersection');
+    const after = onGround(gesture.center);
     const shift = before.sub(after); this.viewOffset.add(shift); this.camera.position.add(shift);
     this.camera.updateMatrixWorld();
+    this.keepPlayerVisible();
   };
+
+  private keepPlayerVisible(): void {
+    if (!this.touchView) return;
+    const width = this.root.clientWidth, height = this.root.clientHeight;
+    const halfWidth = (this.camera.right - this.camera.left) / (2 * this.camera.zoom);
+    const halfHeight = (this.camera.top - this.camera.bottom) / (2 * this.camera.zoom);
+    const radius = (playerRadius + CONFIG.thickness) * height / (2 * halfHeight);
+    const horizontalMargin = Math.min(width / 2, radius + 24);
+    const topMargin = Math.min(height / 2, radius + 76);
+    const bottomMargin = Math.min(height / 2, radius + 88);
+    const point = this.player.pos.clone().project(this.camera);
+    const x = THREE.MathUtils.clamp(point.x, -1 + 2 * horizontalMargin / width, 1 - 2 * horizontalMargin / width);
+    const y = THREE.MathUtils.clamp(point.y, -1 + 2 * bottomMargin / height, 1 - 2 * topMargin / height);
+    const right = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0);
+    const up = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 1).setY(0);
+    const shift = right.multiplyScalar((point.x - x) * halfWidth)
+      .addScaledVector(up, (point.y - y) * halfHeight / up.lengthSq());
+    this.viewOffset.add(shift); this.camera.position.add(shift); this.camera.updateMatrixWorld();
+  }
 
   private readonly frame = (now: number): void => {
     if (this.destroyed) return; const delta = Math.min((now - this.previousTime) / 1000, 0.1); this.previousTime = now; this.accumulator += delta;
@@ -242,6 +263,7 @@ export class GameScene {
     this.camera.position.set(center.x + Math.sin(this.cameraAngle) * VIEWPORT.cameraDistance, center.y + VIEWPORT.cameraHeight, center.z + Math.cos(this.cameraAngle) * VIEWPORT.cameraDistance);
     this.camera.lookAt(center); this.localAvatar.quaternion.copy(this.camera.quaternion); for (const remote of this.remoteAvatars.values()) remote.object.quaternion.copy(this.camera.quaternion);
     this.camera.updateMatrixWorld();
+    this.keepPlayerVisible();
     this.ripple.update(delta); this.scene.updateMatrixWorld(true);
     this.rendering.render(this.scene, this.camera);
     this.controlPreview.update(this.camera, this.targetCameraAngle, delta, this.root.clientHeight);

@@ -173,7 +173,24 @@ async function runSiteChecks(): Promise<Record<string, unknown>> {
   check(brightness(rippleImage, project(new THREE.Vector3(36, 20.05, 0)), 1) === 0, 'Ripple escaped the block surface'); checks += 1;
   ripple.update(1); check(!ripple.visible, 'Ripple did not finish'); checks += 1;
   scene.clear();
-  return { checks };
+  const broadRipple = new NavigationRipple(Array.from({ length: 9 }, (_, index) => ({ gx: index % 3 - 1, gy: 0, gz: Math.floor(index / 3) - 1, type: 'standard' as const })));
+  scene.add(broadRipple); broadRipple.show(new THREE.Vector3(0, 20, 0)); broadRipple.update(0.335);
+  const broad = capture(), opacity = 1 - 0.335 / 0.65, radius = 3 + 33 * 0.335 / 0.65;
+  const widths: number[] = [];
+  for (const axis of ['x', 'z'] as const) {
+    const point = new THREE.Vector3(0, 20.05, 0); point[axis] = radius;
+    const center = project(point);
+    let energy = 0;
+    const horizontal = axis === 'x';
+    for (let offset = -8 * devicePixelRatio; offset <= 8 * devicePixelRatio; offset += 1) {
+      energy += pixel(broad, center.x + (horizontal ? offset : 0), center.y + (horizontal ? 0 : offset));
+    }
+    const width = energy / opacity;
+    widths.push(width);
+    check(Math.abs(width - CONFIG.thickness * devicePixelRatio) < 0.3 * devicePixelRatio, `Ripple ${axis} width ${width}`); checks += 1;
+  }
+  scene.clear();
+  return { checks, rippleWidths: widths };
 }
 
 async function referencePixels(name: string): Promise<number[]> {

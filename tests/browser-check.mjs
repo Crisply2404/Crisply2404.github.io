@@ -38,13 +38,13 @@ const state = () => page.evaluate(() => {
   return { x: game.player.pos.x, y: game.player.pos.y, z: game.player.pos.z, angle: game.targetCameraAngle,
     vx: game.player.vel.x, vz: game.player.vel.z, grounded: game.player.grounded, path: game.path.length };
 });
-await page.keyboard.down('w');
-await page.waitForFunction(() => window.game.player.pos.x < -25);
+await page.keyboard.down('d');
+await page.waitForFunction(() => window.game.player.pos.z < 15);
 await page.keyboard.press('q');
 assert.equal((await state()).angle, Math.PI * 3 / 4);
-await page.waitForFunction(() => window.game.player.pos.x < -55);
-assert.ok(Math.abs((await state()).vz) < 0.02);
-await page.keyboard.up('w'); await page.keyboard.press('r');
+await page.waitForFunction(() => window.game.player.pos.z < -15);
+assert.ok(Math.abs((await state()).vx) < 0.02);
+await page.keyboard.up('d'); await page.keyboard.press('r');
 await page.waitForFunction(() => window.game.player.grounded);
 await page.keyboard.down(' ');
 await page.waitForFunction(() => window.game.player.pos.y > 100);

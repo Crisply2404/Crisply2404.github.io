@@ -26,7 +26,20 @@ await desktop.keyboard.press('Tab');
 assert.equal(await desktop.evaluate(() => window.game.orientation), 1);
 await desktop.reload();
 await desktop.waitForFunction(() => window.game?.player.grounded);
-assert.equal(await desktop.evaluate(() => window.game.orientation), 2);
+assert.equal(await desktop.evaluate(() => window.game.orientation), 1);
+for (const orientation of [0, 2, 1]) {
+  await desktop.keyboard.press('Tab');
+  assert.equal(await desktop.evaluate(() => window.game.orientation), orientation);
+  await desktop.reload();
+  await desktop.waitForFunction(() => window.game?.player.grounded);
+  assert.equal(await desktop.evaluate(() => window.game.orientation), orientation);
+  await desktop.waitForFunction((orientation) => {
+    const position = window.game.controlTutorial.movement.player.pos;
+    if (orientation === 0) return position.x < -8 && Math.abs(position.z) < 0.02;
+    if (orientation === 1) return position.z < -8 && Math.abs(position.x) < 0.02;
+    return position.x < -8 && Math.abs(position.x - position.z) < 0.02;
+  }, orientation);
+}
 const titleFonts = () => desktop.evaluate(() => {
   const titles = [];
   window.game.scene.traverse((object) => {
@@ -45,7 +58,7 @@ await desktop.waitForFunction(() => {
 });
 assert.ok((await titleFonts()).every((title, index) => title.id !== initialFonts[index].id));
 await desktop.evaluate(() => document.documentElement.style.setProperty('--door-title-font-weight', '500'));
-console.log('桌面底部提示、按钮层级、刷新默认控制模式与门名字重即时更新检查通过。');
+console.log('桌面底部提示、按钮层级、三种控制模式的刷新保存与门名字重即时更新检查通过。');
 await desktop.close();
 
 const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });

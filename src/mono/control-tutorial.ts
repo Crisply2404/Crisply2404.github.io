@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { BlockData } from './blocks';
-import { VIEWPORT, controlModeOrder, movementDirection } from './config';
+import { VIEWPORT, controlModeOrder, movementDirection, type WasdOrientation } from './config';
 import { ControlDiagram } from './control-preview';
 import { navigationForce } from './navigation';
 import { NavigationRipple } from './navigation-ripple';
@@ -21,10 +21,7 @@ interface BallDemo {
 
 const stepDuration = 1 / 60;
 const tutorialDuration = 14;
-const moveTargets = [[0, -1], [1, -1], [1, 0], [0, 0]].map(([x, y]) => {
-  const [worldX, worldZ] = movementDirection(x * 24, y * 24, Math.PI / 4, 2);
-  return new THREE.Vector3(worldX, 40.02, worldZ);
-});
+const moveInputs = [[0, -1], [1, -1], [1, 0], [0, 0]];
 const moveKeys = ['w', 'd', 's', 'a'];
 
 export class ControlTutorial {
@@ -124,7 +121,7 @@ export class ControlTutorial {
     this.resize(); this.resizeObserver.observe(this.canvas);
   }
 
-  public update(delta: number): void {
+  public update(delta: number, orientation: WasdOrientation = 2): void {
     if (this.disposed) return;
     if (!Number.isFinite(delta) || delta < 0) throw new Error('Tutorial time must be finite and nonnegative');
     this.elapsed += delta;
@@ -132,7 +129,7 @@ export class ControlTutorial {
     this.accumulator += delta;
     this.renderAccumulator += delta;
     while (this.accumulator >= stepDuration) {
-      this.animateStep(); this.accumulator -= stepDuration; this.tick += 1;
+      this.animateStep(orientation); this.accumulator -= stepDuration; this.tick += 1;
     }
     const phase = this.tick % 240;
     const turn = phase < 120 ? Math.PI / 2 : 0;
@@ -178,10 +175,12 @@ export class ControlTutorial {
     return { content, avatar, player, physics: new PhysicsEngine(blocks) };
   }
 
-  private animateStep(): void {
-    const movementIndex = Math.floor(this.tick / 48) % moveTargets.length;
+  private animateStep(orientation: WasdOrientation): void {
+    const movementIndex = Math.floor(this.tick / 48) % moveInputs.length;
     if (this.movement) {
-      const movementForce = navigationForce(this.movement.player.pos, this.movement.player.vel, moveTargets[movementIndex]);
+      const [x, y] = moveInputs[movementIndex];
+      const [worldX, worldZ] = movementDirection(x * 24, y * 24, Math.PI / 4, orientation);
+      const movementForce = navigationForce(this.movement.player.pos, this.movement.player.vel, new THREE.Vector3(worldX, 40.02, worldZ));
       this.stepBall(this.movement, movementForce);
       for (const key of moveKeys) this.setKey(key, key === moveKeys[movementIndex] && movementForce.lengthSq() > 0.01);
     }

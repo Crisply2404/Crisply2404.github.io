@@ -62,6 +62,9 @@ export class GameScene {
     this.rendering = new MonoRenderer(this.canvas); this.visualBuilder = new VisualBuilder(this.rendering);
     this.localAvatar = this.visualBuilder.createPlayerMesh();
     this.camera.zoom = this.touchView ? 1.5 : 1;
+    const stored = Number(localStorage.getItem('mono-wasd-orientation') ?? 2);
+    if (!controlModeOrder.includes(stored as WasdOrientation)) throw new Error('Invalid WASD orientation');
+    this.orientation = stored as WasdOrientation;
     this.controlPreview = new ControlPreview(root);
     this.controlTutorial = new ControlTutorial(root);
     this.buildScene(); this.installInput();
@@ -122,6 +125,7 @@ export class GameScene {
       if (event.repeat) return;
       if (event.key === 'Tab') {
         event.preventDefault(); this.orientation = controlModeOrder[(controlModeOrder.indexOf(this.orientation) + 1) % controlModeOrder.length];
+        localStorage.setItem('mono-wasd-orientation', String(this.orientation));
         this.resetInput(); this.controlPreview.show(this.orientation); return;
       }
       const key = keyMap[event.key.toLowerCase()]; if (!key) return; event.preventDefault();
@@ -267,7 +271,7 @@ export class GameScene {
     this.ripple.update(delta); this.scene.updateMatrixWorld(true);
     this.rendering.render(this.scene, this.camera);
     this.controlPreview.update(this.camera, this.targetCameraAngle, delta, this.root.clientHeight);
-    this.controlTutorial.update(delta);
+    this.controlTutorial.update(delta, this.orientation);
   }
 
   private receiveAvatars(avatars: Map<string, AvatarState>): void {

@@ -162,15 +162,16 @@ export class VisualBuilder {
     return group;
   }
 
-  private createDoorGraphic(source: string, height: number): THREE.Mesh {
+  private createDoorGraphic(source: string, extent: number): THREE.Mesh {
     const paths = new SVGLoader().parse(source).paths
       .filter((path) => path.userData?.style.stroke && path.userData.style.stroke !== 'none')
       .flatMap((path) => path.subPaths.map((subPath) => subPath.getPoints(32)));
     const bounds = new THREE.Box2().setFromPoints(paths.flat());
     const size = bounds.getSize(new THREE.Vector2());
-    if (!Number.isFinite(size.y) || size.y <= 0 || height <= 0) throw new Error('Door graphic requires visible strokes');
+    const longestSide = Math.max(size.x, size.y);
+    if (!Number.isFinite(longestSide) || longestSide <= 0 || extent <= 0) throw new Error('Door graphic requires visible strokes');
     const center = bounds.getCenter(new THREE.Vector2());
-    const scale = height / size.y;
+    const scale = extent / longestSide;
     const segments: Segment[] = [];
     for (const path of paths) {
       for (let index = 1; index < path.length; index += 1) {

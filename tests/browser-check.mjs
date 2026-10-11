@@ -134,6 +134,8 @@ assert.ok(Math.abs(safe.z + 100) < 5, JSON.stringify(safe));
 await clickWorld(200, -100);
 assert.equal((await state()).path, 0);
 assert.ok(Math.abs((await state()).z - safe.z) < 1);
+await page.keyboard.press('Tab');
+assert.equal(await page.locator('.control-preview').isVisible(), true);
 await clickWorld(-72, -160);
 await page.waitForFunction(() => window.routes.includes('/notes/'), undefined, { polling: 100 });
 assert.ok(await page.evaluate(() => window.routes.includes('/notes/')), JSON.stringify(await page.evaluate(() => ({
@@ -144,8 +146,6 @@ assert.ok(await page.evaluate(() => window.routes.includes('/notes/')), JSON.str
 }))));
 await page.waitForTimeout(100);
 assert.deepEqual(await page.evaluate(() => window.routes), ['/notes/']);
-await page.keyboard.press('Tab');
-assert.equal(await page.locator('.control-preview').isVisible(), true);
 await page.waitForSelector('.control-tutorial', { state: 'detached' });
 assert.deepEqual(errors, []);
 console.log('真实键盘移动、镜头旋转、跳跃、鼠标寻路和自动进入门检查通过。');

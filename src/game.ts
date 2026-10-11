@@ -71,6 +71,7 @@ export class GameScene {
     this.canvasNavigation = new CanvasNavigation(this.canvas, this.navigateToPoint, this.applyViewGesture);
     this.presence = new PresenceClient(import.meta.env.VITE_PRESENCE_WS_URL as string | undefined, (avatars) => this.receiveAvatars(avatars));
     this.mobile = new MobileControls(root, (action, pressed) => {
+      if (this.routePending) return;
       if (action === 'rotateLeft' && pressed) this.targetCameraAngle += Math.PI / 2;
       else if (action === 'rotateRight' && pressed) this.targetCameraAngle -= Math.PI / 2;
       else if (action === 'jump') this.setJump(pressed);
@@ -123,6 +124,10 @@ export class GameScene {
     const keyMap: Record<string, KeyName | undefined> = { w: 'w', a: 'a', s: 's', d: 'd', q: 'q', e: 'e', arrowleft: 'q', arrowright: 'e', r: 'r', ' ': ' ' };
     window.addEventListener('keydown', (event) => {
       if (event.repeat) return;
+      if (this.routePending) {
+        if (event.key === 'Tab' || keyMap[event.key.toLowerCase()]) event.preventDefault();
+        return;
+      }
       if (event.key === 'Tab') {
         event.preventDefault(); this.orientation = controlModeOrder[(controlModeOrder.indexOf(this.orientation) + 1) % controlModeOrder.length];
         localStorage.setItem('mono-wasd-orientation', String(this.orientation));
@@ -146,6 +151,7 @@ export class GameScene {
   }
 
   private readonly navigateToPoint = (point: THREE.Vector2): void => {
+    if (this.routePending) return;
     const raycaster = this.screenRay(point);
     const hit = raycaster.intersectObject(this.floorObjects.getObjectByName('BlackBlocks')!, false)[0];
     if (!hit || !hit.face || hit.face.normal.y < 0.99) return;
@@ -156,6 +162,7 @@ export class GameScene {
   };
 
   private readonly applyViewGesture = (gesture: ViewGesture): void => {
+    if (this.routePending) return;
     const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), -this.player.pos.y);
     const onGround = (point: THREE.Vector2): THREE.Vector3 => {
       const ray = this.screenRay(point).ray;
@@ -195,6 +202,7 @@ export class GameScene {
   };
 
   private update(): void {
+    if (this.routePending) return;
     const direct = new THREE.Vector2(Number(this.keys.has('d')) - Number(this.keys.has('a')), Number(this.keys.has('s')) - Number(this.keys.has('w')));
     let input = direct;
     let automatic = false;
@@ -251,13 +259,14 @@ export class GameScene {
     for (const door of doors) {
       if (this.atDestination(doorPosition(door))) {
         this.routePending = true;
+        this.resetInput(); this.player.vel.set(0, 0, 0);
         this.onRoute(door.path);
         return;
       }
     }
   }
 
-  private setJump(pressed: boolean): void { this.player.jump(pressed, this.jumpPressed); this.jumpPressed = pressed; }
+  private setJump(pressed: boolean): void { if (this.routePending) return; this.player.jump(pressed, this.jumpPressed); this.jumpPressed = pressed; }
   private resetInput(): void { this.keys.clear(); this.mobile?.reset(); this.canvasNavigation?.reset(); this.jumpPressed = this.wasMoving = this.automaticJump = false; this.player.jumpBuffer = 0; this.path = []; }
   private resetPlayer(): void { this.player.place(spawn); this.resetInput(); }
 

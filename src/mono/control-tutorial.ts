@@ -9,8 +9,6 @@ import { PhysicsEngine, PlayerState } from './physics';
 import { MonoRenderer } from './renderer';
 import rotateLeft from './icons/rotate-left.svg';
 import rotateRight from './icons/rotate-right.svg';
-import handClick from './icons/hand-click.svg';
-import handTwoFingers from './icons/hand-two-fingers.svg';
 
 interface BallDemo {
   content: THREE.Group;
@@ -39,8 +37,7 @@ export class ControlTutorial {
   private readonly keys = new Map<string, HTMLElement>();
   private readonly modeDots: HTMLElement[];
   private readonly tapSymbol: HTMLElement;
-  private readonly gestureHand: HTMLElement | null;
-  private readonly gestureArrows: HTMLElement[];
+  private readonly fingers: HTMLElement[];
   private readonly movement?: BallDemo;
   private readonly jumping: BallDemo;
   private readonly clicking: BallDemo;
@@ -61,10 +58,10 @@ export class ControlTutorial {
     const inputs = document.createElement('div'); inputs.className = 'tutorial-inputs';
     inputs.innerHTML = this.mobile ? `
       <div class="tutorial-input" data-control="tap" role="img" aria-label="Tap the floor: Move">
-        <img class="tutorial-hand tutorial-tap" src="${handClick}" alt="">
+        <i class="tutorial-finger tutorial-tap"></i>
       </div>
       <div class="tutorial-input" data-control="gesture" role="img" aria-label="Two fingers: Zoom and move view">
-        <div class="tutorial-gesture"><img class="tutorial-hand" src="${handTwoFingers}" alt=""><i class="tutorial-gesture-arrow">←</i><i class="tutorial-gesture-arrow">→</i></div>
+        <div class="tutorial-gesture"><i class="tutorial-finger"></i><i class="tutorial-finger"></i></div>
       </div>
       <div class="tutorial-input" data-control="rotate" role="img" aria-label="Rotate view">
         <div class="tutorial-rotation-keys"><kbd data-key="q"><img src="${rotateLeft}" alt=""></kbd><kbd data-key="e"><img src="${rotateRight}" alt=""></kbd></div>
@@ -88,8 +85,7 @@ export class ControlTutorial {
     for (const key of inputs.querySelectorAll<HTMLElement>('[data-key]')) this.keys.set(key.dataset.key!, key);
     this.modeDots = [...inputs.querySelectorAll<HTMLElement>('.tutorial-modes i')];
     this.tapSymbol = inputs.querySelector<HTMLElement>(this.mobile ? '.tutorial-tap' : '.tutorial-mouse-button')!;
-    this.gestureHand = inputs.querySelector<HTMLElement>('.tutorial-gesture .tutorial-hand');
-    this.gestureArrows = [...inputs.querySelectorAll<HTMLElement>('.tutorial-gesture-arrow')];
+    this.fingers = [...inputs.querySelectorAll<HTMLElement>('.tutorial-gesture .tutorial-finger')];
 
     const walkingBlocks: BlockData[] = [[0, 0], [-1, 0], [0, -1], [-1, -1], [1, 0], [1, -1]]
       .map(([gx, gz]) => ({ gx, gy: 0, gz, type: 'standard' }));
@@ -208,10 +204,9 @@ export class ControlTutorial {
     this.viewDemo.scale.setScalar(scale);
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
     this.viewDemo.position.copy(right).multiplyScalar(pan);
-    this.gestureHand!.style.transform = `translateX(${pan * 0.3}px) scaleX(${scale})`;
-    this.gestureArrows.forEach((arrow, index) => {
-      arrow.textContent = phase < 180 ? (index === 0 ? '←' : '→') : (pan >= 0 ? '→' : '←');
-      arrow.style.transform = `translateX(${phase < 180 ? (index === 0 ? -1 : 1) * motion * 4 : pan * 0.3}px)`;
+    this.fingers.forEach((finger, index) => {
+      const x = (index === 0 ? -1 : 1) * (11 + (scale - 1) * 32) + pan * 0.3;
+      finger.style.transform = `translateX(${x}px)`;
     });
   }
 

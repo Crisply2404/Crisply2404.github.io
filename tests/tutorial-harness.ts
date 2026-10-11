@@ -28,7 +28,7 @@ async function runTutorialChecks(): Promise<Record<string, unknown>> {
     tutorial.update(1 / 60);
     if (tick % 6 !== 0) continue;
     modes.add([...root.querySelectorAll('.tutorial-modes i')].findIndex((dot) => dot.classList.contains('is-active')));
-    fingerFrames.add([...root.querySelectorAll<HTMLElement>('.tutorial-gesture .tutorial-hand')]
+    fingerFrames.add([...root.querySelectorAll<HTMLElement>('.tutorial-gesture .tutorial-finger')]
       .map((finger) => finger.style.transform).join(','));
     taps.add(root.querySelector('.tutorial-tap')?.classList.contains('is-active') ?? false);
     for (const key of root.querySelectorAll<HTMLElement>('.tutorial-wasd .is-active')) moveKeys.add(key.dataset.key!);
@@ -59,9 +59,12 @@ async function runTutorialChecks(): Promise<Record<string, unknown>> {
   }
   if (mobile) {
     check(fingerFrames.size > 20 && taps.size === 2, 'Mobile tutorial must animate tap, pinch and pan'); checks += 1;
-    const hands = [...root.querySelectorAll<HTMLImageElement>('.tutorial-hand')];
-    check(hands.length === 2 && hands.every((hand) => hand.complete && hand.naturalWidth === 24),
-      'Mobile tutorial requires both Tabler gesture images'); checks += 1;
+    const fingers = [...root.querySelectorAll<HTMLElement>('.tutorial-finger')];
+    check(fingers.length === 3 && fingers.every((finger) => {
+      const style = getComputedStyle(finger);
+      return style.borderTopWidth === '1px' && style.backgroundColor === 'rgb(0, 0, 0)'
+        && getComputedStyle(finger, '::after').borderTopWidth === '1px';
+    }), 'Mobile finger diagrams require 1px outlines and opaque interiors'); checks += 1;
   } else {
     check(modes.size === 3 && !modes.has(-1), 'Tutorial must cycle through three control modes'); checks += 1;
     check(moveKeys.size === 4, 'Tutorial must animate all WASD keys'); checks += 1;

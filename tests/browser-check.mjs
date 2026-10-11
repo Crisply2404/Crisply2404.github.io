@@ -162,7 +162,7 @@ assert.equal(await mobile.locator('.dpad').count(), 0);
 assert.equal(await mobile.locator('.tutorial-input').count(), 4);
 assert.equal(await mobile.locator('.tutorial-wasd').count(), 0);
 assert.equal(await mobile.locator('.tutorial-tap').count(), 1);
-assert.equal(await mobile.locator('.tutorial-gesture .tutorial-hand').count(), 1);
+assert.equal(await mobile.locator('.tutorial-gesture .tutorial-finger').count(), 2);
 await mobile.locator('.tutorial-input kbd, .touch-button').evaluateAll((keys) => {
   const family = getComputedStyle(document.documentElement).fontFamily;
   for (const key of keys) {

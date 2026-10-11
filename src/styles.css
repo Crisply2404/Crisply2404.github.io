@@ -226,36 +226,36 @@ a {
 
 .tutorial-gesture {
   position: relative;
-  width: 64px;
-  height: 40px;
+  width: 70px;
+  height: 36px;
 }
 
-.tutorial-hand {
+.tutorial-finger {
   display: block;
-  width: 36px;
-  height: 36px;
-  transform-origin: 50% 80%;
+  width: 14px;
+  height: 30px;
+  border: 1px solid white;
+  border-radius: 7px 7px 3px 3px;
+  background: black;
+}
+
+.tutorial-finger::after {
+  content: '';
+  display: block;
+  margin: 7px 2px 0;
+  height: 6px;
+  border-top: 1px solid currentColor;
 }
 
 .tutorial-tap.is-active {
   transform: translateY(4px);
 }
 
-.tutorial-gesture .tutorial-hand {
+.tutorial-gesture .tutorial-finger {
   position: absolute;
-  left: calc(50% - 18px);
-  top: 2px;
+  left: calc(50% - 7px);
+  top: 3px;
 }
-
-.tutorial-gesture-arrow {
-  position: absolute;
-  top: 0;
-  font-size: 16px;
-  line-height: 16px;
-}
-
-.tutorial-gesture-arrow:first-of-type { left: 4px; }
-.tutorial-gesture-arrow:last-of-type { right: 4px; }
 
 .tutorial-mouse-button {
   position: absolute;

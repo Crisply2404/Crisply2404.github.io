@@ -13,7 +13,7 @@ The homepage mode that lists the corridor doors from top to bottom using the sam
 _Avoid_: normal page, fallback page
 
 **Entrance ball**:
-The single MONO TOWER player ball beside the List view entrance titles. It starts beside the first entrance, follows the hovered or focused title with an ease-out movement, and keeps its last position after the pointer leaves. Its colors invert with the row. Reduced-motion preferences make position changes immediate.
+The single MONO TOWER player ball beside the List view entrance titles. It starts beside the first entrance, follows the hovered or focused title with an ease-out movement, and keeps its last position after the pointer leaves. Its colors invert with the row. Platform motion preferences preserve the full animation.
 
 **Corridor**:
 A straight, extendable passage whose configured doors are the site's entrances.

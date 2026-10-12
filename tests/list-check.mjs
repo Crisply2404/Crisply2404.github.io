@@ -6,8 +6,11 @@ const browser = await chromium.launch({ channel: 'chrome', headless: true, downl
 const errors = [];
 const baseUrl = process.env.SITE_URL ?? 'http://localhost:5174';
 
-for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }, { width: 320, height: 240 }]) {
-  const page = await browser.newPage({ viewport });
+const scenarios = [{ width: 1280, height: 800 }, { width: 390, height: 844 }, { width: 320, height: 240 }]
+  .flatMap((viewport) => ['no-preference', 'reduce'].map((reducedMotion) => ({ viewport, reducedMotion })));
+
+for (const { viewport, reducedMotion } of scenarios) {
+  const page = await browser.newPage({ viewport, reducedMotion });
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto(baseUrl);
   await page.getByRole('button', { name: 'Switch to list view' }).click();
@@ -16,6 +19,8 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 
   const ball = entrances.locator('canvas');
   await ball.waitFor();
   await page.waitForTimeout(500);
+  assert.equal(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), reducedMotion === 'reduce');
+  assert.equal(await ball.evaluate((canvas) => getComputedStyle(canvas).transitionDuration), '0.42s');
   assert.deepEqual(await rows.allTextContents().then((titles) => titles.map((title) => title.trim())), ['Notes', 'Essays', '击鼓传字']);
   assert.deepEqual(await rows.evaluateAll((links) => links.map((link) => new URL(link.href).pathname)), ['/notes/', '/essays/', '/chuan-zi/']);
   assert.equal(await entrances.locator('.entry-index, .entry-path').count(), 0);
@@ -68,6 +73,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 
   });
   const final = await ball.boundingBox();
   assert.ok(Math.abs(final.y + final.height / 2 - target.y - target.height / 2) < 0.5, 'Ball must settle before the hovered title');
+  assert.ok(samples.some((sample) => sample.y > start.y + 1 && sample.y < final.y - 1), 'Ball must show intermediate positions throughout the animation');
   const halfway = samples.find((sample) => sample.time >= 130);
   assert.ok((halfway.y - start.y) / (final.y - start.y) > 0.7, 'Ball must cover most distance early');
   assert.ok(samples.every((sample, index) => index === 0 || sample.y >= samples[index - 1].y - 0.5), 'Ball must move directly toward the selected title');
@@ -79,9 +85,6 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 
   const focusBall = await ball.boundingBox();
   assert.ok(Math.abs(focusBall.y + focusBall.height / 2 - focused.y - focused.height / 2) < 0.5, `Keyboard focus must move the ball: ${JSON.stringify({ focusBall, focused })}`);
   assert.equal(await rows.nth(1).evaluate((row) => getComputedStyle(row).backgroundColor), 'rgb(255, 255, 255)');
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await rows.nth(0).focus();
-  assert.equal(await ball.evaluate((canvas) => getComputedStyle(canvas).transitionDuration), '0s');
   await page.getByRole('button', { name: 'Switch to game view' }).click();
   await page.waitForSelector('.scene-canvas');
   assert.equal(await page.locator('.entrance-ball').count(), 0);
@@ -95,7 +98,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 
   await page.goBack();
   await page.waitForSelector('.entrance-ball');
   assert.equal(await page.locator('.entrance-ball').count(), 1);
-  console.log(`入口列表、原游戏球体、反色、减速移动、键盘、减少动画与页面返回检查通过：${viewport.width} × ${viewport.height}`);
+  console.log(`入口列表、原游戏球体、反色、减速移动、键盘与页面返回检查通过：${viewport.width} × ${viewport.height}，reducedMotion=${reducedMotion}`);
   await page.close();
 }
 

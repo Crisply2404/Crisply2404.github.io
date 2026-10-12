@@ -53,7 +53,8 @@ export function renderArticle(kind: CollectionKind, slug: string): string {
     <div class="site-shell">
       ${header()}
       <main class="content-root">
-        <div class="reading-column"><article>${marked.parse(entry.source)}</article></div>
+        <div class="reading-column"><article>${marked.lexer(entry.source).some((token) => token.type === 'heading')
+          ? '' : `<h1>${entry.title}</h1>`}${marked.parse(entry.source)}</article></div>
       </main>
     </div>
   `;

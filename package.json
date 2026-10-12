@@ -14,6 +14,7 @@
     "test:view": "node tests/view-check.mjs",
     "test:list": "node tests/list-check.mjs",
     "test:list-play": "node tests/list-play-check.mjs",
+    "test:page-play": "node tests/page-play-check.mjs",
     "test:presence": "node tests/presence-check.mjs",
     "test:speech": "node tests/speech-check.mjs",
     "test:history": "npm run build && node tests/history-check.mjs",

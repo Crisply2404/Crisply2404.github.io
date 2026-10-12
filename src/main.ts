@@ -80,10 +80,22 @@ function renderRoute(): void {
     disposeScene();
     const kind = match[1] as CollectionKind;
     appRoot.innerHTML = match[2] ? renderArticle(kind, match[2]) : renderCollection(kind);
+    void installPagePlay(routeGeneration);
     return;
   }
   disposeScene();
   appRoot.innerHTML = renderCollection('notes');
+  void installPagePlay(routeGeneration);
+}
+
+async function installPagePlay(generation: number): Promise<void> {
+  const [{ EntranceBall }, { physicsReady }] = await Promise.all([import('./entrance-ball'), import('./mono/physics')]);
+  await physicsReady;
+  await document.fonts.ready;
+  if (generation !== routeGeneration) return;
+  const root = appRoot.querySelector<HTMLElement>('.reading-column');
+  if (!root) throw new Error('Reading page is unavailable');
+  activeEntrances = new EntranceBall(root);
 }
 
 window.addEventListener('popstate', renderRoute);

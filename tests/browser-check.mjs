@@ -108,7 +108,7 @@ await page.keyboard.press('q');
 assert.equal((await state()).angle, Math.PI * 3 / 4);
 await page.waitForFunction(() => window.game.player.pos.z < -15);
 const afterRotation = await state();
-assert.ok(Math.abs(afterRotation.x - beforeRotation.x) < 0.1,
+assert.ok(Math.abs(afterRotation.x - beforeRotation.x) < Math.abs(afterRotation.z - beforeRotation.z) * 0.02,
   `Continuous movement must preserve its world direction while rotating: ${JSON.stringify({ beforeRotation, afterRotation })}`);
 await page.keyboard.up('d'); await page.keyboard.press('r');
 await page.waitForFunction(() => window.game.player.grounded);

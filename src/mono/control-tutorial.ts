@@ -42,6 +42,8 @@ export class ControlTutorial {
   private readonly jumping: BallDemo;
   private readonly clicking: BallDemo;
   private readonly speaking = new THREE.Group();
+  private readonly speakingBall: THREE.Group;
+  private readonly speechFinger?: HTMLElement;
   private readonly speechGraphic: THREE.Mesh;
   private readonly speechFill: THREE.Mesh;
   private readonly speechTip: HTMLElement;
@@ -72,7 +74,7 @@ export class ControlTutorial {
       </div>
       <div class="tutorial-input" data-control="jump" role="img" aria-label="Jump"><kbd class="tutorial-wide-key" data-key="space">JUMP</kbd></div>
       <div class="tutorial-input tutorial-speech-input" data-control="speech" role="img" aria-label="Tap your ball: Speak">
-        <i class="tutorial-finger tutorial-speech-tap"></i><i class="tutorial-speech-bubble"><i></i><i></i><i></i></i>
+        <i class="tutorial-speech-bubble"><i></i><i></i><i></i></i>
       </div>` : `
       <div class="tutorial-input" data-control="move" role="img" aria-label="WASD: Move">
         <div class="tutorial-wasd"><kbd data-key="w">W</kbd><kbd data-key="a">A</kbd><kbd data-key="s">S</kbd><kbd data-key="d">D</kbd></div>
@@ -92,6 +94,11 @@ export class ControlTutorial {
       </div>
       `;
     this.wrapper.append(this.canvas, inputs); root.append(this.wrapper);
+    if (this.mobile) {
+      this.speechFinger = document.createElement('i');
+      this.speechFinger.className = 'tutorial-finger tutorial-speech-tap';
+      this.wrapper.append(this.speechFinger);
+    }
     for (const key of inputs.querySelectorAll<HTMLElement>('[data-key]')) this.keys.set(key.dataset.key!, key);
     this.modeDots = [...inputs.querySelectorAll<HTMLElement>('.tutorial-modes i')];
     this.tapSymbol = inputs.querySelector<HTMLElement>(this.mobile ? '.tutorial-tap' : '.tutorial-mouse-button')!;
@@ -119,10 +126,10 @@ export class ControlTutorial {
       viewContent.add(this.builder.createLevelMesh(clickingBlocks), viewBall); viewContent.position.y = -20;
       this.viewDemo.add(viewContent);
     } else this.diagram = new ControlDiagram(this.builder);
-    const speakingBall = this.builder.createPlayerMesh();
+    this.speakingBall = this.builder.createPlayerMesh();
     const speakingPlatform = this.builder.createLevelMesh(jumpBlocks);
-    speakingBall.position.y = 40.02;
-    this.speaking.add(speakingPlatform, speakingBall);
+    this.speakingBall.position.y = 40.02;
+    this.speaking.add(speakingPlatform, this.speakingBall);
     this.speaking.position.y = -20;
     this.speechGraphic = this.builder.createStroke([
       [new THREE.Vector3(-22, 72, 0), new THREE.Vector3(22, 72, 0)],
@@ -179,7 +186,6 @@ export class ControlTutorial {
     this.speechTip.style.opacity = String(visible);
     this.speechTip.style.transform = `translateY(${(1 - visible) * 4}px) scale(${0.8 + visible * 0.2})`;
     this.setKey('enter', speechPhase >= 18 && speechPhase < 30 || speechPhase >= 132 && speechPhase < 144);
-    this.wrapper.querySelector('.tutorial-speech-tap')?.classList.toggle('is-active', speechPhase >= 18 && speechPhase < 30);
     if (this.mobile) this.animateGesture();
     // 球体共用主场景的摄像机朝向与球面深度。
     this.scene.updateMatrixWorld(true);
@@ -187,6 +193,17 @@ export class ControlTutorial {
       if (object.name === 'PlayerMesh') object.quaternion.copy(object.parent!.getWorldQuaternion(new THREE.Quaternion()))
         .invert().multiply(this.camera.quaternion);
     });
+    if (this.speechFinger) {
+      const point = this.speakingBall.getWorldPosition(new THREE.Vector3()).project(this.camera);
+      const scale = this.canvas.clientHeight / (this.camera.top - this.camera.bottom);
+      const contact = speechPhase >= 18 && speechPhase < 30;
+      const approach = THREE.MathUtils.smoothstep(speechPhase, 6, 18);
+      const retreat = THREE.MathUtils.smoothstep(speechPhase, 30, 48);
+      this.speechFinger.style.left = `${(point.x + 1) * this.canvas.clientWidth / 2 - 7}px`;
+      this.speechFinger.style.top = `${(1 - point.y) * this.canvas.clientHeight / 2 - 20 * scale - 30 - 12 * (1 - approach + retreat)}px`;
+      this.speechFinger.style.opacity = String(speechPhase < 54 ? 1 : 0);
+      this.speechFinger.classList.toggle('is-active', contact);
+    }
     this.wrapper.style.opacity = String(Math.min(1, this.elapsed / 0.25, (tutorialDuration - this.elapsed) / 2));
     if (this.renderAccumulator >= 1 / 30) {
       this.renderAccumulator %= 1 / 30;

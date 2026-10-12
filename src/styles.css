@@ -273,6 +273,17 @@ a {
   transform: translateY(4px);
 }
 
+.tutorial-speech-tap {
+  position: absolute;
+  transform: rotate(180deg);
+  pointer-events: none;
+}
+
+.tutorial-speech-tap.is-active {
+  color: black;
+  background: white;
+}
+
 .tutorial-gesture .tutorial-finger {
   position: absolute;
   left: calc(50% - 7px);
@@ -444,6 +455,7 @@ a {
 }
 
 .entry-row:hover,
+.entry-row.letter-hover,
 .entry-row:focus-visible {
   color: #000;
   background: #fff;
@@ -505,6 +517,46 @@ a {
   pointer-events: none;
   mix-blend-mode: difference;
   transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reading-column {
+  position: relative;
+  padding-left: 44px;
+}
+
+.reading-column .entrance-ball {
+  left: 0;
+  z-index: 3;
+}
+
+.page-text-source {
+  color: transparent !important;
+  text-decoration-color: transparent !important;
+}
+
+.page-letter-layer {
+  pointer-events: none;
+}
+
+.page-letter {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 0;
+  display: block;
+  white-space: pre;
+  transform-origin: center;
+  mix-blend-mode: difference;
+  pointer-events: none;
+}
+
+.page-header-letter {
+  position: fixed;
+  z-index: 31;
+}
+
+.page-link-letter {
+  pointer-events: none;
 }
 
 .list-cursor-mode {

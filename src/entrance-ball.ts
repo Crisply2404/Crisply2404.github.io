@@ -1,10 +1,11 @@
 import * as THREE from 'three';
-import { CONFIG, PHYSICS, VIEWPORT, controlModeOrder, movementDirection, type WasdOrientation } from './mono/config';
+import { CONFIG, PHYSICS, VIEWPORT, movementDirection } from './mono/config';
 import { VisualBuilder } from './mono/objects';
 import { MonoRenderer } from './mono/renderer';
 import { GameCursor } from './mono/game-cursor';
-import { ControlPreview } from './mono/control-preview';
 import { PlayerState } from './mono/physics';
+import { PageLetters } from './page-letters';
+import { readPagePlayState, savePagePlayState } from './page-play-state';
 
 export class EntranceBall {
   private readonly canvas = document.createElement('canvas');
@@ -17,7 +18,11 @@ export class EntranceBall {
   private readonly listeners = new AbortController();
   private readonly resizeObserver = new ResizeObserver(() => this.resize());
   private readonly cursor = new GameCursor();
-  private readonly preview: ControlPreview;
+  private readonly letters: PageLetters;
+  private readonly shell: HTMLElement;
+  private readonly rows: HTMLElement[];
+  private tapStart: { id: number; x: number; y: number } | undefined;
+  private tapTarget: THREE.Vector2 | undefined;
   private readonly keys = new Set<string>();
   private readonly player = new PlayerState();
   private readonly position = this.player.pos;
@@ -25,15 +30,12 @@ export class EntranceBall {
   private readonly shards = new THREE.Group();
   private readonly pushed = new THREE.Vector2();
   private readonly screenOffset = new THREE.Vector2();
-  private selectedRow: HTMLAnchorElement;
+  private selectedRow: HTMLElement;
   private animationFrame = 0;
   private previousTime = performance.now();
   private accumulator = 0;
   private targetAngle = Math.PI / 4;
   private cameraAngle = Math.PI / 4;
-  private movementAngle = Math.PI / 4;
-  private orientation: WasdOrientation = 2;
-  private wasMoving = false;
   private brokenAt: number | undefined;
   private displaced = false;
   private jumpPressed = false;
@@ -42,17 +44,19 @@ export class EntranceBall {
   private lastCursorPosition = new THREE.Vector2(Number.NaN, Number.NaN);
 
   public constructor(private readonly root: HTMLElement) {
-    const rows = root.querySelectorAll<HTMLAnchorElement>('.entry-row');
-    if (!rows.length) throw new Error('Site entrances are unavailable');
-    this.selectedRow = rows[0];
-    const stored = Number(localStorage.getItem('mono-wasd-orientation') ?? 2);
-    if (!controlModeOrder.includes(stored as WasdOrientation)) throw new Error('Invalid WASD orientation');
-    this.orientation = stored as WasdOrientation;
+    this.rows = root.matches('.entrance-list') ? [...root.querySelectorAll<HTMLElement>('.entry-row')] : [];
+    if (!this.rows.length) {
+      const heading = root.querySelector<HTMLElement>('h1, h2, h3, h4, h5, h6');
+      if (!heading) throw new Error('Page title is unavailable');
+      this.rows = [heading];
+    }
+    const saved = readPagePlayState();
+    this.selectedRow = this.rows[Math.min(saved?.selected ?? 0, this.rows.length - 1)];
+    this.shell = root.closest<HTMLElement>('.site-shell')!;
     this.canvas.className = 'entrance-ball';
     this.canvas.setAttribute('aria-hidden', 'true');
     root.append(this.canvas);
     document.body.classList.add('list-cursor-mode');
-    this.preview = new ControlPreview(root);
     this.camera.position.z = 1000;
     this.scene.add(this.ball, this.shards);
     for (let index = 0; index < 8; index += 1) {
@@ -63,12 +67,9 @@ export class EntranceBall {
       this.shards.add(this.builder.createStroke(points.slice(1).map((point, step) => [points[step], point])));
     }
     this.shards.visible = false;
-    for (const row of rows) {
+    for (const row of this.rows) {
       const select = (): void => {
-        if (this.selectedRow === row) return;
-        this.selectedRow = row;
-        this.clearInput();
-        this.returnToAnchor();
+        this.selectRow(row);
       };
       row.addEventListener('pointerenter', select, { signal: this.listeners.signal });
       row.addEventListener('focus', select, { signal: this.listeners.signal });
@@ -76,19 +77,29 @@ export class EntranceBall {
     window.addEventListener('keydown', this.keyDown, { signal: this.listeners.signal });
     window.addEventListener('keyup', this.keyUp, { signal: this.listeners.signal });
     window.addEventListener('blur', this.clearInput, { signal: this.listeners.signal });
+    window.addEventListener('resize', this.resize, { signal: this.listeners.signal });
     window.addEventListener('pointermove', this.pointerMove, { signal: this.listeners.signal });
     document.addEventListener('pointerleave', this.pointerLeave, { signal: this.listeners.signal });
     document.addEventListener('visibilitychange', this.clearInput, { signal: this.listeners.signal });
+    this.shell.addEventListener('pointerdown', this.pointerDown, { signal: this.listeners.signal });
+    this.shell.addEventListener('pointerup', this.pointerUp, { signal: this.listeners.signal });
+    this.shell.addEventListener('pointercancel', () => { this.tapStart = undefined; }, { signal: this.listeners.signal });
     this.resize();
+    this.letters = new PageLetters(this.shell, saved?.letters, (element) => {
+      if (this.rows.includes(element)) this.selectRow(element);
+    });
+    if (saved) { this.screenOffset.set(saved.ball.x, saved.ball.y); this.displaced = true; this.placeBall(); }
     this.resizeObserver.observe(root);
     this.animationFrame = requestAnimationFrame(this.frame);
   }
 
   public destroy(): void {
+    savePagePlayState({ selected: this.rows.indexOf(this.selectedRow),
+      ball: { x: this.screenOffset.x + this.pushed.x, y: this.screenOffset.y + this.pushed.y }, letters: this.letters.snapshot() });
     this.listeners.abort();
     cancelAnimationFrame(this.animationFrame);
     this.resizeObserver.disconnect();
-    this.preview.dispose();
+    this.letters.destroy();
     const geometries = new Set<THREE.BufferGeometry>();
     this.scene.traverse((object) => { if (object instanceof THREE.Mesh) geometries.add(object.geometry); });
     for (const geometry of geometries) geometry.dispose();
@@ -99,7 +110,7 @@ export class EntranceBall {
     this.canvas.remove();
   }
 
-  private resize(): void {
+  private readonly resize = (): void => {
     const width = this.canvas.clientWidth, height = this.canvas.clientHeight;
     const unitsPerPixel = CONFIG.playerRadius * 2 / 24;
     this.camera.left = -width * unitsPerPixel / 2;
@@ -114,8 +125,11 @@ export class EntranceBall {
     this.viewCamera.updateProjectionMatrix();
     this.rendering.resize(width, height);
     this.rendering.render(this.scene, this.camera);
-    this.returnToAnchor();
-  }
+    if (this.displaced) this.placeBall();
+    else this.canvas.style.transform = `translate(0, ${this.baseY()}px)`;
+    this.letters?.resize();
+    this.letters?.relocateBall(this.documentCenter());
+  };
 
   private returnToAnchor(): void {
     this.player.place(new THREE.Vector3());
@@ -126,22 +140,26 @@ export class EntranceBall {
     this.canvas.getBoundingClientRect();
     this.canvas.style.transition = '';
     this.canvas.style.transform = `translate(0, ${this.baseY()}px)`;
+    this.tapTarget = undefined;
+    if (this.letters) this.letters.relocateBall(this.documentCenter());
+  }
+
+  private selectRow(row: HTMLElement): void {
+    if (this.selectedRow === row) return;
+    this.selectedRow = row;
+    this.clearInput();
+    this.returnToAnchor();
   }
 
   private baseY(): number {
-    return this.selectedRow.offsetTop + (this.selectedRow.offsetHeight - this.canvas.clientHeight) / 2;
+    const title = this.selectedRow.getBoundingClientRect();
+    const root = this.root.getBoundingClientRect();
+    return title.top - root.top + (title.height - this.canvas.clientHeight) / 2;
   }
 
   private readonly keyDown = (event: KeyboardEvent): void => {
     if (event.repeat) return;
     const key = event.key.toLowerCase();
-    if (key === 'tab') {
-      this.orientation = controlModeOrder[(controlModeOrder.indexOf(this.orientation) + 1) % controlModeOrder.length];
-      localStorage.setItem('mono-wasd-orientation', String(this.orientation));
-      this.preview.show(this.orientation);
-      this.clearInput();
-      return;
-    }
     if (!['w', 'a', 's', 'd', 'q', 'e', 'arrowleft', 'arrowright', ' ', 'r'].includes(key)) return;
     event.preventDefault();
     if (key === 'q' || key === 'arrowleft') this.targetAngle += Math.PI / 2;
@@ -170,27 +188,28 @@ export class EntranceBall {
     const delta = Math.min((now - this.previousTime) / 1000, 0.1);
     this.previousTime = now;
     this.accumulator += delta;
+    const previousAngle = this.cameraAngle;
     this.cameraAngle = THREE.MathUtils.damp(this.cameraAngle, this.targetAngle, 18, delta);
+    this.velocity.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.cameraAngle - previousAngle);
     this.viewCamera.position.set(Math.sin(this.cameraAngle) * VIEWPORT.cameraDistance, VIEWPORT.cameraHeight,
       Math.cos(this.cameraAngle) * VIEWPORT.cameraDistance);
     this.viewCamera.lookAt(0, 0, 0);
     this.viewCamera.updateMatrixWorld();
     this.cursor.setAngle(this.cameraAngle);
     while (this.accumulator >= 1 / 60) { this.step(); this.accumulator -= 1 / 60; }
-    this.preview.update(this.viewCamera, this.targetAngle, delta, 800);
     if (this.brokenAt !== undefined) this.animateShards(now);
     this.animationFrame = requestAnimationFrame(this.frame);
   };
 
   private step(): void {
-    if (this.brokenAt !== undefined) return;
+    if (this.brokenAt !== undefined) { this.letters.step(this.documentCenter(), false); return; }
     const previousPosition = this.position.clone();
     this.player.consumeJump();
     const x = Number(this.keys.has('d')) - Number(this.keys.has('a'));
     const z = Number(this.keys.has('s')) - Number(this.keys.has('w'));
     if (x || z) {
-      if (!this.wasMoving) this.movementAngle = this.targetAngle;
-      const [worldX, worldZ] = movementDirection(x, z, this.movementAngle, this.orientation);
+      this.tapTarget = undefined;
+      const [worldX, worldZ] = movementDirection(x, z, this.cameraAngle, 2);
       this.velocity.add(new THREE.Vector3(worldX, 0, worldZ).normalize().multiplyScalar(CONFIG.moveSpeed));
       this.displaced = true;
     }
@@ -212,9 +231,20 @@ export class EntranceBall {
     const up = new THREE.Vector3().setFromMatrixColumn(this.viewCamera.matrixWorld, 1);
     this.screenOffset.x += motion.dot(right) / this.unitsPerPixel;
     this.screenOffset.y -= motion.dot(up) / this.unitsPerPixel;
-    this.wasMoving = Boolean(x || z);
+    if (this.tapTarget) {
+      const delta = this.tapTarget.clone().sub(this.documentCenter());
+      const distance = delta.length();
+      if (distance < 0.5) this.tapTarget = undefined;
+      else {
+        this.screenOffset.addScaledVector(delta.normalize(), Math.min(distance, Math.max(0.5, Math.min(3.2, distance * 0.14))));
+        this.displaced = true;
+      }
+    }
     if (this.displaced) this.placeBall();
     this.collideCursor();
+    this.letters.step(this.documentCenter(), this.brokenAt === undefined);
+    const requiredHeight = Math.ceil(Math.max(innerHeight, this.documentCenter().y + 48, this.letters.bottom + 48));
+    if (requiredHeight > this.shell.offsetHeight) this.shell.style.minHeight = `${requiredHeight}px`;
   }
 
   private placeBall(): void {
@@ -223,13 +253,17 @@ export class EntranceBall {
     const bounds = this.root.getBoundingClientRect();
     const baseLeft = bounds.left + this.canvas.offsetLeft;
     const displayedX = THREE.MathUtils.clamp(x, 16 - baseLeft, innerWidth - 48 - baseLeft);
-    const displayedY = THREE.MathUtils.clamp(this.baseY() + y, 84 - bounds.top, innerHeight - 48 - bounds.top);
+    const displayedY = this.baseY() + y;
     this.canvas.style.transition = 'none';
     this.canvas.style.transform = `translate(${displayedX}px, ${displayedY}px)`;
   }
 
   private readonly pointerMove = (event: PointerEvent): void => {
-    if (event.pointerType === 'touch') { this.cursor.hide(); return; }
+    if (event.pointerType === 'touch') {
+      this.cursor.hide();
+      if (this.tapStart && Math.hypot(event.clientX - this.tapStart.x, event.clientY - this.tapStart.y) > 10) this.tapStart = undefined;
+      return;
+    }
     const target = new THREE.Vector2(event.clientX, event.clientY);
     const previous = this.lastCursorPosition;
     const distance = Number.isFinite(previous.x) ? previous.distanceTo(target) : 0;
@@ -246,6 +280,23 @@ export class EntranceBall {
     }
   };
 
+  private readonly pointerDown = (event: PointerEvent): void => {
+    if (event.pointerType !== 'touch') return;
+    if (this.tapStart) { this.tapStart = undefined; return; }
+    this.tapStart = { id: event.pointerId, x: event.clientX, y: event.clientY };
+  };
+
+  private readonly pointerUp = (event: PointerEvent): void => {
+    const start = this.tapStart;
+    this.tapStart = undefined;
+    if (!start || start.id !== event.pointerId || Math.hypot(event.clientX - start.x, event.clientY - start.y) > 10) return;
+    if ((event.target as HTMLElement).closest('a, button, .page-link-letter')) return;
+    const bounds = this.shell.getBoundingClientRect();
+    this.tapTarget = new THREE.Vector2(event.clientX - bounds.left, event.clientY - bounds.top);
+    this.clearInput();
+    this.canvas.style.transition = 'none';
+  };
+
   private readonly pointerLeave = (): void => {
     this.cursor.hide();
     this.lastCursorPosition.set(Number.NaN, Number.NaN);
@@ -255,6 +306,12 @@ export class EntranceBall {
   private ballCenter(): THREE.Vector2 {
     const bounds = this.canvas.getBoundingClientRect();
     return new THREE.Vector2(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2);
+  }
+
+  private documentCenter(): THREE.Vector2 {
+    const point = this.ballCenter();
+    const bounds = this.shell.getBoundingClientRect();
+    return point.sub(new THREE.Vector2(bounds.left, bounds.top));
   }
 
   private collideCursor(): void {
@@ -278,7 +335,7 @@ export class EntranceBall {
 
   private respawn(): void {
     const center = this.ballCenter();
-    const rows = [...this.root.querySelectorAll<HTMLAnchorElement>('.entry-row')];
+    const rows = this.rows;
     this.selectedRow = rows.reduce((nearest, row) => {
       const distance = (item: HTMLElement): number => {
         const bounds = item.getBoundingClientRect();

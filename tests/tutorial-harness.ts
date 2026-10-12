@@ -31,6 +31,19 @@ async function runTutorialChecks(): Promise<Record<string, unknown>> {
     fingerFrames.add([...root.querySelectorAll<HTMLElement>('.tutorial-gesture .tutorial-finger')]
       .map((finger) => finger.style.transform).join(','));
     taps.add(root.querySelector('.tutorial-tap')?.classList.contains('is-active') ?? false);
+    if (mobile && root.querySelector('.tutorial-speech-tap')?.classList.contains('is-active')) {
+      const finger = root.querySelector<HTMLElement>('.tutorial-speech-tap')!;
+      const tipX = Math.round((parseFloat(finger.style.left) + 7) * devicePixelRatio);
+      const tipY = Math.round((parseFloat(finger.style.top) + 30) * devicePixelRatio);
+      const data = new Uint8Array(canvas.width * canvas.height * 4);
+      gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, data);
+      let outline = 0;
+      for (let y = tipY - 2; y <= tipY + 2; y += 1) for (let x = tipX - 2; x <= tipX + 2; x += 1) {
+        const index = ((canvas.height - 1 - y) * canvas.width + x) * 4;
+        outline = Math.max(outline, data[index] ?? 0);
+      }
+      check(outline > 32, 'The speech finger must touch the player ball outline'); checks += 1;
+    }
     for (const key of root.querySelectorAll<HTMLElement>('.tutorial-wasd .is-active')) moveKeys.add(key.dataset.key!);
     const data = new Uint8Array(canvas.width * canvas.height * 4);
     gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, data);

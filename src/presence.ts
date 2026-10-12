@@ -9,6 +9,9 @@ export class PresenceClient {
   private socket: WebSocket | undefined;
   private reconnectTimer: number | undefined;
   private destroyed = false;
+  private latest: Omit<AvatarState, 'id' | 'updatedAt'> | undefined;
+  private previousState: Omit<AvatarState, 'id' | 'updatedAt'> | undefined;
+  private lastSentAt = 0;
   private readonly avatars = new Map<string, AvatarState>();
 
   public constructor(url: string | undefined, listener: PresenceListener) {
@@ -21,12 +24,23 @@ export class PresenceClient {
   }
 
   public publish(avatar: Omit<AvatarState, 'id' | 'updatedAt'>): void {
+    this.latest = avatar;
     if (this.socket?.readyState !== WebSocket.OPEN) {
       return;
     }
 
-    this.socket.send(JSON.stringify({ type: 'state', avatar }));
+    const now = performance.now();
+    if (now - this.lastSentAt < 100) return;
+    const previous = this.previousState;
+    if (previous && Math.hypot(avatar.x - previous.x, avatar.y - previous.y, avatar.z - previous.z) < 0.25
+      && Math.hypot(avatar.vx - previous.vx, avatar.vy - previous.vy, avatar.vz - previous.vz) < 0.1) return;
+    const payload = JSON.stringify({ type: 'state', avatar });
+    this.socket.send(payload);
+    this.previousState = avatar;
+    this.lastSentAt = now;
   }
+
+  public get identity(): string { return this.id; }
 
   public destroy(): void {
     this.destroyed = true;
@@ -40,7 +54,11 @@ export class PresenceClient {
   private connect(): void {
     this.socket = new WebSocket(this.url);
     this.socket.addEventListener('open', () => {
+      if (this.destroyed) { this.socket?.close(); return; }
       this.socket?.send(JSON.stringify({ type: 'join', id: this.id }));
+      this.previousState = undefined;
+      this.lastSentAt = 0;
+      if (this.latest) this.publish(this.latest);
     });
     this.socket.addEventListener('message', (event) => {
       const message = JSON.parse(String(event.data)) as PresenceMessage;

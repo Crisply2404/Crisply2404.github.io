@@ -38,7 +38,8 @@ async function renderHome(): Promise<void> {
   if (getMode() === 'list') {
     appRoot.innerHTML = renderListPage();
     appRoot.querySelector<HTMLButtonElement>('[data-view-toggle]')?.addEventListener('click', () => setMode('game'));
-    const { EntranceBall } = await import('./entrance-ball');
+    const [{ EntranceBall }, { physicsReady }] = await Promise.all([import('./entrance-ball'), import('./mono/physics')]);
+    await physicsReady;
     if (generation !== routeGeneration) return;
     const entrances = appRoot.querySelector<HTMLElement>('.entrance-list');
     if (!entrances) throw new Error('Site entrances are unavailable');

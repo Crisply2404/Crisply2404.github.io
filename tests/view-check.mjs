@@ -9,8 +9,8 @@ desktop.on('pageerror', (error) => errors.push(error.message));
 await desktop.goto('http://localhost:5174/');
 await desktop.waitForSelector('.control-tutorial');
 const tutorial = await desktop.locator('.control-tutorial').boundingBox();
-assert.ok(tutorial.y > 800 / 2);
-assert.ok(Math.abs(800 - tutorial.y - tutorial.height - 64) < 1);
+assert.ok(tutorial.y < 800 / 2);
+assert.ok(tutorial.y >= 88);
 await desktop.locator('.view-toggle').evaluate((button) => {
   const header = button.closest('.site-header');
   const hint = document.querySelector('.control-tutorial');
@@ -58,7 +58,7 @@ await desktop.waitForFunction(() => {
 });
 assert.ok((await titleFonts()).every((title, index) => title.id !== initialFonts[index].id));
 await desktop.evaluate(() => document.documentElement.style.setProperty('--door-title-font-weight', '500'));
-console.log('桌面底部提示、按钮层级、三种控制模式的刷新保存与门名字重即时更新检查通过。');
+console.log('桌面顶部提示、按钮层级、三种控制模式的刷新保存与门名字重即时更新检查通过。');
 await desktop.close();
 
 const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });

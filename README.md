@@ -13,6 +13,8 @@ npm run dev
 
 Set `VITE_PRESENCE_WS_URL` to an available WSS endpoint when testing visitor presence. Without it, the local ball and doors remain usable.
 
+The Cloudflare Worker lives in `presence/`. Run `npm ci && npm start` there, then start the site with `VITE_PRESENCE_WS_URL=ws://localhost:8788/lobby`. Deployment and account login commands are in `docs/deployment.md`.
+
 ## Content
 
 Add Markdown files to `src/content/notes/` or `src/content/essays/`. The collection page and article route are generated during the Vite build.
@@ -24,6 +26,8 @@ npm run check
 npm test
 npm run build
 ```
+
+`npm run test:list-play` checks the List view's keyboard movement and game cursor collisions. `npm run test:presence` checks two browsers against the real running relay. Run `npm test` inside `presence/` to check joining, broadcasting, rate limits, leaving and twenty connected visitors.
 
 浏览器检查使用真实 Chrome 和 WebGL。启动 `npm run dev -- --port 5174 --strictPort` 后，在另一个终端运行：
 

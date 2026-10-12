@@ -105,7 +105,8 @@ a {
 .control-tutorial {
   position: absolute;
   z-index: 20;
-  bottom: clamp(24px, 8vh, 96px);
+  top: clamp(88px, 12vh, 144px);
+  bottom: auto;
   left: 50%;
   transform: translateX(-50%);
   width: min(860px, calc(100% - 40px));
@@ -434,6 +435,30 @@ a {
   pointer-events: none;
   mix-blend-mode: difference;
   transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.list-cursor-mode {
+  cursor: none;
+}
+
+.list-cursor-mode a,
+.list-cursor-mode button {
+  cursor: none;
+}
+
+.game-cursor {
+  position: fixed;
+  z-index: 100;
+  top: 0;
+  left: 0;
+  width: 96px;
+  height: 96px;
+  pointer-events: none;
+  transform: translate(-32px, -32px);
+}
+
+.game-cursor[hidden] {
+  display: none;
 }
 
 .reading-column {

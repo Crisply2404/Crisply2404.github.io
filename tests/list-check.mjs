@@ -16,7 +16,7 @@ for (const { viewport, reducedMotion } of scenarios) {
   await page.getByRole('button', { name: 'Switch to list view' }).click();
   const entrances = page.getByRole('navigation', { name: 'Site entrances' });
   const rows = entrances.getByRole('link');
-  const ball = entrances.locator('canvas');
+  const ball = entrances.locator('.entrance-ball');
   await ball.waitFor();
   await page.waitForTimeout(500);
   assert.equal(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), reducedMotion === 'reduce');
@@ -55,6 +55,7 @@ for (const { viewport, reducedMotion } of scenarios) {
   await rows.nth(2).scrollIntoViewIfNeeded();
   await page.waitForTimeout(500);
   const target = await rows.nth(2).boundingBox();
+  await page.mouse.move(viewport.width - 1, 0);
   const start = await ball.boundingBox();
   await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2);
   const samples = await page.evaluate(async () => {
@@ -73,7 +74,7 @@ for (const { viewport, reducedMotion } of scenarios) {
   });
   const final = await ball.boundingBox();
   assert.ok(Math.abs(final.y + final.height / 2 - target.y - target.height / 2) < 0.5, 'Ball must settle before the hovered title');
-  assert.ok(samples.some((sample) => sample.y > start.y + 1 && sample.y < final.y - 1), 'Ball must show intermediate positions throughout the animation');
+  assert.ok(samples.some((sample) => sample.y > start.y + 1 && sample.y < final.y - 1), `Ball must show intermediate positions throughout the animation: ${JSON.stringify({ start, final, samples })}`);
   const halfway = samples.find((sample) => sample.time >= 130);
   assert.ok((halfway.y - start.y) / (final.y - start.y) > 0.7, 'Ball must cover most distance early');
   assert.ok(samples.every((sample, index) => index === 0 || sample.y >= samples[index - 1].y - 0.5), 'Ball must move directly toward the selected title');

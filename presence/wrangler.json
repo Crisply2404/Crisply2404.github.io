@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "crisply2404-presence",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-12",
+  "workers_dev": true,
+  "durable_objects": {
+    "bindings": [{ "name": "LOBBY", "class_name": "PresenceLobby" }]
+  },
+  "exports": {
+    "PresenceLobby": { "type": "durable-object", "storage": "sqlite" }
+  },
+  "vars": {
+    "ALLOWED_ORIGINS": "https://crisply2404.github.io,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175"
+  }
+}

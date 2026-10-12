@@ -8,6 +8,8 @@ dist/
 /chuan-zi-source/
 presence/node_modules/
 presence/dist/
+presence/.wrangler/
+presence/.dev.vars
 .work/
 test-results/
 playwright-report/

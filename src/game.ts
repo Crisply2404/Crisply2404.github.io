@@ -232,15 +232,18 @@ export class GameScene {
     this.wasMoving = input.lengthSq() > 0; this.localAvatar.position.copy(this.player.pos);
     for (const remote of this.remoteAvatars.values()) remote.object.position.lerp(new THREE.Vector3(remote.target.x, remote.target.y, remote.target.z), 0.22);
     this.resolveAvatarOverlap(); this.checkDestinations();
-    this.presence.publish({ x: this.player.pos.x, y: this.player.pos.y, z: this.player.pos.z, vx: this.player.vel.x, vy: this.player.vel.y, vz: this.player.vel.z });
+    const rounded = (value: number): number => Math.round(value * 10) / 10;
+    this.presence.publish({ x: rounded(this.player.pos.x), y: rounded(this.player.pos.y), z: rounded(this.player.pos.z),
+      vx: rounded(this.player.vel.x), vy: rounded(this.player.vel.y), vz: rounded(this.player.vel.z) });
   }
 
   private resolveAvatarOverlap(): void {
     for (const remote of this.remoteAvatars.values()) {
-      const delta = this.player.pos.clone().sub(remote.object.position); const distance = delta.length();
+      const remotePosition = new THREE.Vector3(remote.target.x, remote.target.y, remote.target.z);
+      const delta = this.player.pos.clone().sub(remotePosition); const distance = delta.length();
       if (distance < playerRadius * 2) {
-        if (distance === 0) delta.set(1, 0, 0); else delta.divideScalar(distance);
-        const candidate = remote.object.position.clone().addScaledVector(delta, playerRadius * 2);
+        if (distance < 0.01) delta.set(this.presence.identity < remote.target.id ? -1 : 1, 0, 0); else delta.divideScalar(distance);
+        const candidate = remotePosition.clone().addScaledVector(delta, playerRadius * 2 + 0.02);
         if (candidate.x >= -80 && candidate.x <= 80 && candidate.z >= corridorEndZ + 20 && candidate.z <= corridorStartZ - 20) {
           this.player.pos.copy(candidate);
           if (this.player.vel.dot(delta) < 0) this.player.vel.addScaledVector(delta, -this.player.vel.dot(delta));
@@ -285,6 +288,12 @@ export class GameScene {
 
   private receiveAvatars(avatars: Map<string, AvatarState>): void {
     for (const [id, avatar] of avatars) { let remote = this.remoteAvatars.get(id); if (!remote) { remote = { target: avatar, object: this.visualBuilder.createPlayerMesh() }; remote.object.position.set(avatar.x, avatar.y, avatar.z); this.remoteAvatars.set(id, remote); this.scene.add(remote.object); } else remote.target = avatar; }
-    for (const [id, remote] of this.remoteAvatars) if (!avatars.has(id)) { this.scene.remove(remote.object); this.remoteAvatars.delete(id); }
+    for (const [id, remote] of this.remoteAvatars) if (!avatars.has(id)) {
+      this.scene.remove(remote.object);
+      const geometries = new Set<THREE.BufferGeometry>();
+      remote.object.traverse((object) => { if (object instanceof THREE.Mesh) geometries.add(object.geometry); });
+      for (const geometry of geometries) geometry.dispose();
+      this.remoteAvatars.delete(id);
+    }
   }
 }

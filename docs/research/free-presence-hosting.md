@@ -4,7 +4,7 @@
 
 目标是为 GitHub Pages 上的 Game view 提供一个公开的临时 Presence lobby。浏览器发送当前球体位置，服务把最新位置广播给同一 lobby 的其他浏览器；服务不保存历史位置，不计算碰撞。浏览器本地阻止球体重叠，碰撞只改变位置，不产生推动效果。客户端位置上报目标频率为最多每 100 毫秒一次（10 Hz）。
 
-当前代码中的 [`PresenceClient`](../../src/presence.ts) 连接一个 WSS 地址，发送 `state` 消息，接收 `snapshot`、`state` 和 `leave` 消息。当前 [`game.ts`](../../src/game.ts) 在 60 Hz 固定更新循环内调用 `presence.publish`，球体静止时也会发送，所以后续接入服务时需要在客户端增加 100 毫秒发送间隔控制与状态变化判断。物理更新继续保持 60 Hz；浏览器只发送联网需要的最新状态。当前 [`presence/server.mjs`](../../presence/server.mjs) 使用 Node.js 与 `ws`，内存保存在线球体并广播最新状态。物理规则记录于 [`docs/adr/0002-client-local-presence-physics.md`](../adr/0002-client-local-presence-physics.md)。
+当前代码中的 [`PresenceClient`](../../src/presence.ts) 连接一个 WSS 地址，发送 `state` 消息，接收 `snapshot`、`state` 和 `leave` 消息。当前 [`game.ts`](../../src/game.ts) 以 60 Hz 更新物理，客户端每 100 毫秒最多发送一次变化状态，静止时停止重复广播。浏览器只发送联网需要的最新状态。[`presence/src/worker.ts`](../../presence/src/worker.ts) 使用 Cloudflare Worker 与 Durable Object Hibernation，连接 attachment 保存在线球体最新状态。物理规则记录于 [`docs/adr/0002-client-local-presence-physics.md`](../adr/0002-client-local-presence-physics.md)。
 
 ## 估算方法
 
@@ -83,7 +83,7 @@ Render Free web service 可以接受公网 WebSocket。官方文档说明，空�
 
 Free workspace 每月有 750 Free instance hours；用完后 Free web services 会暂停到下个月。Render Hobby 工作区每月包含 5 GB outbound bandwidth，公网 WebSocket 响应计入 outbound bandwidth；没有支付方式时超出带宽会把服务 spin down。来源：[Deploy for Free](https://render.com/docs/free.md) 与 [Outbound Bandwidth](https://render.com/docs/outbound-bandwidth.md)。
 
-Render 可以运行现有 [`presence/server.mjs`](../../presence/server.mjs) 的 Node.js/`ws` 结构。持续 5 人房间按每条广播 100 字节估算约 51.84 GB 下行/月，超过 5 GB outbound。Render 文档说明 WebSocket 不设固定连接时长和连接数量限制，实际能力取决于实例资源；Free 实例为 0.1 CPU、512 MB RAM。无支付方式可以使用免费服务，超额时暂停；账号开通时的验证要求仍由平台决定。服务重启与 spin down 会让在线球体暂时消失。Render 文档没有为 Free 服务提供本项目所需的可用性 SLA，免费实例也明确不建议用于 production applications。[Deploy for Free](https://render.com/docs/free.md)、[WebSockets on Render](https://render.com/docs/websocket.md)
+Render 可以运行 Node.js 与 `ws` 实现的 WebSocket 服务。持续 5 人房间按每条广播 100 字节估算约 51.84 GB 下行/月，超过 5 GB outbound。Render 文档说明 WebSocket 不设固定连接时长和连接数量限制，实际能力取决于实例资源；Free 实例为 0.1 CPU、512 MB RAM。无支付方式可以使用免费服务，超额时暂停；账号开通时的验证要求仍由平台决定。服务重启与 spin down 会让在线球体暂时消失。Render 文档没有为 Free 服务提供本项目所需的可用性 SLA，免费实例也明确不建议用于 production applications。[Deploy for Free](https://render.com/docs/free.md)、[WebSockets on Render](https://render.com/docs/websocket.md)
 
 ## 选择结果
 
@@ -123,5 +123,5 @@ Cloudflare China Network 是单独的 Enterprise subscription，官方资料明�
 - [Render WebSockets](https://render.com/docs/websocket.md)
 - [Render Outbound Bandwidth](https://render.com/docs/outbound-bandwidth.md)
 - [Current client](../../src/presence.ts)
-- [Current server](../../presence/server.mjs)
+- [Current server](../../presence/src/worker.ts)
 - [Client-local presence physics ADR](../adr/0002-client-local-presence-physics.md)

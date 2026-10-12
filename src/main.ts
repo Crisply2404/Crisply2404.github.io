@@ -1,6 +1,7 @@
 import './styles.css';
 import { renderArticle, renderCollection, renderListPage } from './markdown';
 import type { GameScene } from './game';
+import type { EntranceBall } from './entrance-ball';
 import type { CollectionKind } from './content';
 import type { ViewMode } from './types';
 
@@ -11,6 +12,7 @@ if (!app) {
 const appRoot = app;
 
 let activeScene: GameScene | undefined;
+let activeEntrances: EntranceBall | undefined;
 let routeGeneration = 0;
 const modeStorageKey = 'crisply2404-home-mode';
 
@@ -26,6 +28,8 @@ function setMode(mode: ViewMode): void {
 function disposeScene(): void {
   activeScene?.destroy();
   activeScene = undefined;
+  activeEntrances?.destroy();
+  activeEntrances = undefined;
 }
 
 async function renderHome(): Promise<void> {
@@ -34,6 +38,11 @@ async function renderHome(): Promise<void> {
   if (getMode() === 'list') {
     appRoot.innerHTML = renderListPage();
     appRoot.querySelector<HTMLButtonElement>('[data-view-toggle]')?.addEventListener('click', () => setMode('game'));
+    const { EntranceBall } = await import('./entrance-ball');
+    if (generation !== routeGeneration) return;
+    const entrances = appRoot.querySelector<HTMLElement>('.entrance-list');
+    if (!entrances) throw new Error('Site entrances are unavailable');
+    activeEntrances = new EntranceBall(entrances);
     return;
   }
 

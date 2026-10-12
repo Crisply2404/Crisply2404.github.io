@@ -67,14 +67,12 @@ export function renderListPage(): string {
         <button class="view-toggle" data-view-toggle aria-label="Switch to game view" title="Switch to game view">◉</button>
       </header>
       <main class="list-root">
-        <nav class="entry-list" aria-label="Site entrances">
+        <nav class="entry-list entrance-list" aria-label="Site entrances">
           ${doors
             .map(
-              (link, index) => `
+              (link) => `
                 <a class="entry-row" href="${link.path}">
-                  <span class="entry-index">${String(index + 1).padStart(2, '0')}</span>
                   <span class="entry-title">${link.title}</span>
-                  <span class="entry-path" aria-hidden="true">↗</span>
                 </a>
               `,
             )

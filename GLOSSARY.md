@@ -9,8 +9,11 @@ The homepage mode that renders the corridor, doors, local ball, and temporary vi
 _Avoid_: game page, 3D mode
 
 **List view**:
-The homepage mode that lists the corridor doors from top to bottom using the same visual language as the Game view.
+The homepage mode that lists the corridor doors from top to bottom using the same visual language as the Game view. Entrance rows show titles and invert their colors on hover or keyboard focus.
 _Avoid_: normal page, fallback page
+
+**Entrance ball**:
+The single MONO TOWER player ball beside the List view entrance titles. It starts beside the first entrance, follows the hovered or focused title with an ease-out movement, and keeps its last position after the pointer leaves. Its colors invert with the row. Reduced-motion preferences make position changes immediate.
 
 **Corridor**:
 A straight, extendable passage whose configured doors are the site's entrances.

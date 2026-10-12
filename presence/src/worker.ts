@@ -1,5 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { z } from 'zod';
+import { speechCharacterLimit, speechDuration, speechRange, speechSendInterval } from '../../src/presence-rules';
 
 interface Env {
   LOBBY: DurableObjectNamespace<PresenceLobby>;
@@ -13,9 +14,10 @@ const stateSchema = z.object({
   avatar: z.object({ x: position, y: position, z: position, vx: velocity, vy: velocity, vz: velocity }),
 });
 const joinSchema = z.object({ type: z.literal('join'), id: z.uuid() });
-const messageSchema = z.discriminatedUnion('type', [stateSchema, joinSchema]);
+const speechSchema = z.object({ type: z.literal('speech'), text: z.string().trim().min(1).max(speechCharacterLimit) });
+const messageSchema = z.discriminatedUnion('type', [stateSchema, joinSchema, speechSchema]);
 type Avatar = z.infer<typeof stateSchema>['avatar'] & { id: string };
-interface Connection { id?: string; avatar?: Avatar; tokens: number; tokenUpdatedAt: number; closed: boolean }
+interface Connection { id?: string; avatar?: Avatar; tokens: number; tokenUpdatedAt: number; lastSpeechAt?: number; closed: boolean }
 
 export class PresenceLobby extends DurableObject<Env> {
   public fetch(request: Request): Response {
@@ -50,6 +52,20 @@ export class PresenceLobby extends DurableObject<Env> {
     }
     if (!connection.id) throw new Error('Visitor must join before publishing');
     const now = Date.now();
+    if (message.type === 'speech') {
+      if (!connection.avatar || now - (connection.lastSpeechAt ?? 0) < speechSendInterval) return;
+      connection.lastSpeechAt = now;
+      socket.serializeAttachment(connection);
+      const speech = JSON.stringify({ type: 'speech', id: connection.id, text: message.text, durationMs: speechDuration });
+      for (const peer of this.ctx.getWebSockets()) {
+        const recipient = peer.deserializeAttachment() as Connection;
+        if (peer === socket || peer.readyState !== WebSocket.OPEN || !recipient.avatar || recipient.closed) continue;
+        const distance = Math.hypot(connection.avatar.x - recipient.avatar.x, connection.avatar.y - recipient.avatar.y,
+          connection.avatar.z - recipient.avatar.z);
+        if (distance <= speechRange) peer.send(speech);
+      }
+      return;
+    }
     connection.tokens = Math.min(10, connection.tokens + (now - connection.tokenUpdatedAt) / 100);
     connection.tokenUpdatedAt = now;
     if (connection.tokens < 1) {

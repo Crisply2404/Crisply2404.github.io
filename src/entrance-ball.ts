@@ -64,7 +64,12 @@ export class EntranceBall {
     }
     this.shards.visible = false;
     for (const row of rows) {
-      const select = (): void => { this.selectedRow = row; this.clearInput(); this.returnToAnchor(); };
+      const select = (): void => {
+        if (this.selectedRow === row) return;
+        this.selectedRow = row;
+        this.clearInput();
+        this.returnToAnchor();
+      };
       row.addEventListener('pointerenter', select, { signal: this.listeners.signal });
       row.addEventListener('focus', select, { signal: this.listeners.signal });
     }
@@ -238,14 +243,13 @@ export class EntranceBall {
     this.lastCursorPosition.copy(target);
     if (this.cursorBlocked && !this.cursor.contact(this.ballCenter())) {
       this.cursorBlocked = false;
-      if (this.brokenAt === undefined) this.respawn();
     }
   };
 
   private readonly pointerLeave = (): void => {
     this.cursor.hide();
     this.lastCursorPosition.set(Number.NaN, Number.NaN);
-    if (this.cursorBlocked) { this.cursorBlocked = false; this.respawn(); }
+    this.cursorBlocked = false;
   };
 
   private ballCenter(): THREE.Vector2 {

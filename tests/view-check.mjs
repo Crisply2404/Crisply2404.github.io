@@ -66,7 +66,7 @@ mobile.on('pageerror', (error) => errors.push(error.message));
 await mobile.goto('http://localhost:5174/tests/game.html');
 await mobile.waitForFunction(() => window.game?.player.grounded);
 assert.equal(await mobile.evaluate(() => window.game.camera.zoom), 1.5);
-assert.equal(await mobile.locator('.tutorial-finger').count(), 3);
+assert.equal(await mobile.locator('.tutorial-finger').count(), 4);
 const mobileHint = await mobile.locator('.control-tutorial').boundingBox();
 assert.ok(mobileHint.y < 100);
 const cdp = await mobile.context().newCDPSession(mobile);

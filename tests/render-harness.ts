@@ -170,16 +170,19 @@ async function runSiteChecks(): Promise<Record<string, unknown>> {
     check(baseline.data.every((value, index) => value === hiddenPlayer.data[index]),
       `${door.id} interior failed to hide the rear ball on side ${side}`); checks += 1;
     player.position.copy(new THREE.Vector3(22, 36, -40).applyQuaternion(camera.quaternion));
-    const partial = capture();
-    const edge = project(new THREE.Vector3(29, 36, 0).applyQuaternion(camera.quaternion));
-    let exposedPixels = 0;
-    for (let y = 0; y < partial.height; y += 1) for (let x = 0; x < partial.width; x += 1) {
-      const index = (y * partial.width + x) * 4;
-      if (x + 0.5 < edge.x - devicePixelRatio * 3) {
-        check(partial.data[index] === baseline.data[index], 'Door interior leaked the partially hidden ball');
-      } else if (x + 0.5 > edge.x + devicePixelRatio * 3 && partial.data[index] > baseline.data[index] + 32) exposedPixels += 1;
+    const edgeHidden = capture();
+    check(baseline.data.every((value, index) => value === edgeHidden.data[index]),
+      'A door covering the ball center must hide the complete ball'); checks += 1;
+    player.position.copy(new THREE.Vector3(35, 36, -40).applyQuaternion(camera.quaternion));
+    const edgeVisible = capture();
+    const edgeCenter = project(player.position);
+    for (let angle = 0; angle < 64; angle += 1) {
+      const point = edgeCenter.clone().add(new THREE.Vector2(Math.cos(angle * Math.PI / 32), Math.sin(angle * Math.PI / 32))
+        .multiplyScalar(20 * devicePixelRatio));
+      check(brightness(edgeVisible, point, devicePixelRatio) > 0.2,
+        'An uncovered ball center must keep the complete outline visible');
     }
-    check(exposedPixels > 10 * devicePixelRatio, 'Exposed part of the ball disappeared'); checks += 1;
+    checks += 1;
     player.position.copy(new THREE.Vector3(0, 36, 40).applyQuaternion(camera.quaternion));
     scene.remove(gate); const playerOnly = capture();
     scene.add(gate); const front = capture();
@@ -245,6 +248,25 @@ async function runSiteChecks(): Promise<Record<string, unknown>> {
       }
       const doorImage = capture();
       check(doorImage.data.some((value, index) => index % 4 === 0 && value > 128), 'Configured door is invisible'); checks += 1;
+      const rearBall = builder.createPlayerMesh();
+      const towardCamera = camera.getWorldDirection(new THREE.Vector3()).negate();
+      rearBall.position.copy(configuredGate.localToWorld(new THREE.Vector3(28, 36, 0))).addScaledVector(towardCamera, -40);
+      scene.add(rearBall);
+      const centerHidden = capture();
+      check(doorImage.data.every((value, index) => value === centerHidden.data[index]),
+        `The complete ball must hide when the ${door.id} door covers its center in view ${view}`); checks += 1;
+      rearBall.position.copy(configuredGate.localToWorld(new THREE.Vector3(32, 36, 0))).addScaledVector(towardCamera, -40);
+      const centerVisible = capture();
+      const ballCenter = project(rearBall.position);
+      for (let sample = 0; sample < 64; sample += 1) {
+        const point = ballCenter.clone().add(new THREE.Vector2(Math.cos(sample * Math.PI / 32), Math.sin(sample * Math.PI / 32))
+          .multiplyScalar(CONFIG.playerRadius * devicePixelRatio));
+        check(brightness(centerVisible, point, devicePixelRatio) > 0.2,
+          `The complete ball must remain visible beside the ${door.id} door in view ${view}`);
+      }
+      checks += 1;
+      scene.remove(rearBall);
+      for (const child of rearBall.children) (child as THREE.Mesh).geometry.dispose();
       if (title) {
         const cameraInGate = configuredGate.worldToLocal(camera.position.clone());
         check(title.scale.x === (cameraInGate.z < 0 ? -1 : 1), 'Door title reading direction is reversed'); checks += 1;

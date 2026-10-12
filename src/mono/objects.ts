@@ -138,9 +138,10 @@ export class VisualBuilder {
     group.name = 'SiteGate';
     group.position.copy(position).add(new THREE.Vector3(0, -CONFIG.playerRadius, 0));
     group.rotation.y = angle;
-    const panel = new THREE.Mesh(new THREE.PlaneGeometry(58, 72), graphics ? this.materialBlack : this.rendering.sitePanel);
+    const panel = new THREE.Mesh(new THREE.PlaneGeometry(58, 72), this.rendering.sitePanel);
     panel.name = 'OpaqueInterior'; panel.position.y = 36;
-    panel.layers.set(graphics ? 0 : 2);
+    panel.layers.set(2);
+    panel.userData.playerCenterOcclusion = Boolean(graphics);
     group.add(panel);
     group.add(this.createGateFrame());
     if (graphics) {

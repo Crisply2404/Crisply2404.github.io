@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      chuan_zi_ref:
+        description: Private project branch or commit to build
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -43,6 +48,7 @@ jobs:
         with:
           repository: Crisply2404/chuan-zi
           token: ${{ secrets.CHUAN_ZI_TOKEN }}
+          ref: ${{ inputs.chuan_zi_ref || vars.CHUAN_ZI_REF }}
           path: chuan-zi-source
 
       - name: Build chuan-zi artifact

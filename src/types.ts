@@ -39,9 +39,11 @@ export interface AvatarState {
 }
 
 export interface PresenceMessage {
-  type: 'state' | 'join' | 'leave' | 'snapshot';
+  type: 'state' | 'join' | 'leave' | 'snapshot' | 'speech';
   id?: string;
   avatar?: Omit<AvatarState, 'updatedAt'>;
   avatars?: Array<Omit<AvatarState, 'updatedAt'>>;
+  text?: string;
+  durationMs?: number;
 }
 

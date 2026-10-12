@@ -124,7 +124,7 @@ a {
 
 .tutorial-inputs {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   padding-bottom: 6px;
 }
 
@@ -213,7 +213,28 @@ a {
 }
 
 .tutorial-mobile .tutorial-inputs {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.tutorial-speech-input {
+  gap: 8px;
+}
+
+.tutorial-speech-bubble {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 24px;
+  height: 18px;
+  border: 1px solid white;
+  background: black;
+}
+
+.tutorial-speech-bubble i {
+  width: 2px;
+  height: 2px;
+  background: white;
 }
 
 .tutorial-mobile {
@@ -324,6 +345,55 @@ a {
 .scene-canvas {
   display: block;
   touch-action: none;
+}
+
+.speech-anchor {
+  position: absolute;
+  z-index: 21;
+  width: max-content;
+  max-width: min(260px, calc(100% - 32px));
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+}
+
+.speech-anchor[hidden] {
+  display: none;
+}
+
+.speech-panel {
+  padding: 9px 12px;
+  border: 1px solid white;
+  color: white;
+  background: black;
+  font: 13px/1.5 var(--site-font-family);
+  overflow-wrap: anywhere;
+  opacity: 0;
+  transform: translateY(6px) scale(0.86);
+  transform-origin: bottom center;
+  transition: opacity 200ms ease, transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.speech-panel.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.speech-composer {
+  pointer-events: auto;
+}
+
+.speech-input {
+  width: min(220px, calc(100vw - 80px));
+  padding: 0;
+  border: 0;
+  outline: 0;
+  color: white;
+  background: black;
+  font: inherit;
+}
+
+.speech-input::placeholder {
+  color: #8c8c8c;
 }
 
 .scene-status {

@@ -1,4 +1,5 @@
 import type { AvatarState, PresenceMessage } from './types';
+import { speechDuration, speechSendInterval, type SpeechMessage } from './presence-rules';
 
 export type PresenceListener = (avatars: Map<string, AvatarState>) => void;
 
@@ -12,9 +13,11 @@ export class PresenceClient {
   private latest: Omit<AvatarState, 'id' | 'updatedAt'> | undefined;
   private previousState: Omit<AvatarState, 'id' | 'updatedAt'> | undefined;
   private lastSentAt = 0;
+  private lastSpeechAt = Number.NEGATIVE_INFINITY;
   private readonly avatars = new Map<string, AvatarState>();
 
-  public constructor(url: string | undefined, listener: PresenceListener) {
+  public constructor(url: string | undefined, listener: PresenceListener,
+    private readonly onSpeech: (message: SpeechMessage) => void = () => undefined) {
     this.url = url ?? '';
     this.id = crypto.randomUUID();
     this.listener = listener;
@@ -41,6 +44,16 @@ export class PresenceClient {
   }
 
   public get identity(): string { return this.id; }
+
+  public speak(text: string): void {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    const now = performance.now();
+    if (now - this.lastSpeechAt < speechSendInterval) return;
+    this.lastSpeechAt = now;
+    this.onSpeech({ id: this.id, text: trimmed, expiresAt: Date.now() + speechDuration });
+    if (this.socket?.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify({ type: 'speech', text: trimmed }));
+  }
 
   public destroy(): void {
     this.destroyed = true;
@@ -74,6 +87,10 @@ export class PresenceClient {
   }
 
   private consume(message: PresenceMessage): void {
+    if (message.type === 'speech' && message.id && message.text && message.durationMs) {
+      this.onSpeech({ id: message.id, text: message.text, expiresAt: Date.now() + message.durationMs });
+      return;
+    }
     if (message.type === 'snapshot' && message.avatars) {
       this.avatars.clear();
       for (const avatar of message.avatars) {

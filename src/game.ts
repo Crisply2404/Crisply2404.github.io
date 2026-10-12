@@ -13,6 +13,8 @@ import { ControlPreview } from './mono/control-preview';
 import { ControlTutorial } from './mono/control-tutorial';
 import { NavigationRipple } from './mono/navigation-ripple';
 import { CanvasNavigation, type ViewGesture } from './mono/canvas-navigation';
+import { SpeechBubbles } from './speech';
+import { speechRange } from './presence-rules';
 
 type KeyName = 'w' | 'a' | 's' | 'd' | 'q' | 'e' | 'r' | ' ';
 interface RemoteAvatar { target: AvatarState; object: THREE.Group }
@@ -30,6 +32,7 @@ export class GameScene {
   private readonly keys = new Set<KeyName>();
   private readonly listenerAbort = new AbortController();
   private readonly presence: PresenceClient;
+  private readonly speech: SpeechBubbles;
   private readonly blocks = corridorBlocks();
   private readonly navigation = new SafetyNavigationGraph(this.blocks);
   private readonly physics = new PhysicsEngine(this.blocks);
@@ -69,9 +72,11 @@ export class GameScene {
     this.controlTutorial = new ControlTutorial(root);
     this.buildScene(); this.installInput();
     this.canvasNavigation = new CanvasNavigation(this.canvas, this.navigateToPoint, this.applyViewGesture);
-    this.presence = new PresenceClient(import.meta.env.VITE_PRESENCE_WS_URL as string | undefined, (avatars) => this.receiveAvatars(avatars));
+    this.speech = new SpeechBubbles(root, (text) => this.presence.speak(text), () => this.resetInput());
+    this.presence = new PresenceClient(import.meta.env.VITE_PRESENCE_WS_URL as string | undefined,
+      (avatars) => this.receiveAvatars(avatars), (message) => this.speech.show(message));
     this.mobile = new MobileControls(root, (action, pressed) => {
-      if (this.routePending) return;
+      if (this.routePending || this.speech.editing) return;
       if (action === 'rotateLeft' && pressed) this.targetCameraAngle += Math.PI / 2;
       else if (action === 'rotateRight' && pressed) this.targetCameraAngle -= Math.PI / 2;
       else if (action === 'jump') this.setJump(pressed);
@@ -85,6 +90,7 @@ export class GameScene {
   public destroy(): void {
     this.destroyed = true; this.listenerAbort.abort(); this.presence.destroy(); window.cancelAnimationFrame(this.animationFrame);
     this.mobile.dispose(); this.canvasNavigation.dispose(); this.controlPreview.dispose(); this.controlTutorial.dispose(); this.physics.dispose();
+    this.speech.destroy();
     this.scene.traverse((object) => {
       if (object instanceof THREE.Mesh) {
         object.geometry.dispose();
@@ -123,7 +129,14 @@ export class GameScene {
   private installInput(): void {
     const keyMap: Record<string, KeyName | undefined> = { w: 'w', a: 'a', s: 's', d: 'd', q: 'q', e: 'e', arrowleft: 'q', arrowright: 'e', r: 'r', ' ': ' ' };
     window.addEventListener('keydown', (event) => {
+      if (this.speech.editing || (event.target instanceof HTMLElement && event.target.isContentEditable)) return;
       if (event.repeat) return;
+      if (event.key === 'Enter' && !this.routePending) {
+        event.preventDefault();
+        this.speech.open();
+        this.updateSpeech();
+        return;
+      }
       if (this.routePending) {
         if (event.key === 'Tab' || keyMap[event.key.toLowerCase()]) event.preventDefault();
         return;
@@ -151,7 +164,15 @@ export class GameScene {
   }
 
   private readonly navigateToPoint = (point: THREE.Vector2): void => {
-    if (this.routePending) return;
+    if (this.routePending || this.speech.editing) return;
+    if (this.touchView) {
+      const center = this.player.pos.clone().project(this.camera);
+      const bounds = this.canvas.getBoundingClientRect();
+      const x = bounds.left + (center.x + 1) * bounds.width / 2;
+      const y = bounds.top + (1 - center.y) * bounds.height / 2;
+      const radius = playerRadius * bounds.height * this.camera.zoom / (this.camera.top - this.camera.bottom);
+      if (point.distanceTo(new THREE.Vector2(x, y)) <= radius) { this.speech.open(); this.updateSpeech(); return; }
+    }
     const raycaster = this.screenRay(point);
     const hit = raycaster.intersectObject(this.floorObjects.getObjectByName('BlackBlocks')!, false)[0];
     if (!hit || !hit.face || hit.face.normal.y < 0.99) return;
@@ -162,7 +183,7 @@ export class GameScene {
   };
 
   private readonly applyViewGesture = (gesture: ViewGesture): void => {
-    if (this.routePending) return;
+    if (this.routePending || this.speech.editing) return;
     const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), -this.player.pos.y);
     const onGround = (point: THREE.Vector2): THREE.Vector3 => {
       const ray = this.screenRay(point).ray;
@@ -184,8 +205,11 @@ export class GameScene {
     const halfHeight = (this.camera.top - this.camera.bottom) / (2 * this.camera.zoom);
     const radius = (playerRadius + CONFIG.thickness) * height / (2 * halfHeight);
     const horizontalMargin = Math.min(width / 2, radius + 24);
-    const topMargin = Math.min(height / 2, radius + 76);
-    const bottomMargin = Math.min(height / 2, radius + 88);
+    const viewport = this.speech.editing ? window.visualViewport : undefined;
+    const visibleTop = viewport?.offsetTop ?? 0;
+    const visibleBottom = visibleTop + (viewport?.height ?? height);
+    const topMargin = visibleTop + Math.min((visibleBottom - visibleTop) / 2, radius + 76);
+    const bottomMargin = height - visibleBottom + Math.min((visibleBottom - visibleTop) / 2, radius + 88);
     const point = this.player.pos.clone().project(this.camera);
     const x = THREE.MathUtils.clamp(point.x, -1 + 2 * horizontalMargin / width, 1 - 2 * horizontalMargin / width);
     const y = THREE.MathUtils.clamp(point.y, -1 + 2 * bottomMargin / height, 1 - 2 * topMargin / height);
@@ -231,7 +255,8 @@ export class GameScene {
     if (!this.physics.step(this.player, force) || this.player.pos.y < spawn.y - 300) this.resetPlayer();
     this.wasMoving = input.lengthSq() > 0; this.localAvatar.position.copy(this.player.pos);
     for (const remote of this.remoteAvatars.values()) remote.object.position.lerp(new THREE.Vector3(remote.target.x, remote.target.y, remote.target.z), 0.22);
-    this.resolveAvatarOverlap(); this.checkDestinations();
+    this.resolveAvatarOverlap();
+    if (!this.speech.editing) this.checkDestinations();
     const rounded = (value: number): number => Math.round(value * 10) / 10;
     this.presence.publish({ x: rounded(this.player.pos.x), y: rounded(this.player.pos.y), z: rounded(this.player.pos.z),
       vx: rounded(this.player.vel.x), vy: rounded(this.player.vel.y), vz: rounded(this.player.vel.z) });
@@ -284,11 +309,30 @@ export class GameScene {
     this.rendering.render(this.scene, this.camera);
     this.controlPreview.update(this.camera, this.targetCameraAngle, delta, this.root.clientHeight);
     this.controlTutorial.update(delta, this.orientation);
+    this.updateSpeech();
+  }
+
+  private updateSpeech(): void {
+    const width = this.root.clientWidth, height = this.root.clientHeight;
+    const radius = playerRadius * height * this.camera.zoom / (this.camera.top - this.camera.bottom);
+    const project = (position: THREE.Vector3): { x: number; y: number } => {
+      const point = position.clone().project(this.camera);
+      return { x: (point.x + 1) * width / 2, y: (1 - point.y) * height / 2 - radius - 10 };
+    };
+    const positions = new Map<string, { x: number; y: number }>();
+    if (!this.speech.editing) positions.set(this.presence.identity, project(this.player.pos));
+    for (const [id, remote] of this.remoteAvatars) {
+      if (this.player.pos.distanceTo(new THREE.Vector3(remote.target.x, remote.target.y, remote.target.z)) <= speechRange) {
+        positions.set(id, project(remote.object.position));
+      }
+    }
+    this.speech.update(project(this.player.pos), positions);
   }
 
   private receiveAvatars(avatars: Map<string, AvatarState>): void {
     for (const [id, avatar] of avatars) { let remote = this.remoteAvatars.get(id); if (!remote) { remote = { target: avatar, object: this.visualBuilder.createPlayerMesh() }; remote.object.position.set(avatar.x, avatar.y, avatar.z); this.remoteAvatars.set(id, remote); this.scene.add(remote.object); } else remote.target = avatar; }
     for (const [id, remote] of this.remoteAvatars) if (!avatars.has(id)) {
+      this.speech.remove(id);
       this.scene.remove(remote.object);
       const geometries = new Set<THREE.BufferGeometry>();
       remote.object.traverse((object) => { if (object instanceof THREE.Mesh) geometries.add(object.geometry); });

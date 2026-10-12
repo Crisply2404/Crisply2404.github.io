@@ -92,6 +92,8 @@ export class MonoRenderer {
 
   public render(scene: THREE.Scene, camera: THREE.OrthographicCamera): void {
     camera.updateMatrixWorld();
+    scene.updateMatrixWorld(true);
+    this.updateDoorOcclusion(scene, camera);
     this.inverseProjection.copy(camera.projectionMatrixInverse);
     this.projection.copy(camera.projectionMatrix);
     camera.layers.set(0);
@@ -108,6 +110,32 @@ export class MonoRenderer {
     camera.layers.set(1);
     this.renderer.render(scene, camera);
     camera.layers.enableAll();
+  }
+
+  private updateDoorOcclusion(scene: THREE.Scene, camera: THREE.OrthographicCamera): void {
+    const panels: { inverse: THREE.Matrix4; direction: THREE.Vector3 }[] = [];
+    const players: THREE.Object3D[] = [];
+    const towardCamera = camera.getWorldDirection(new THREE.Vector3()).negate();
+    scene.traverseVisible((object) => {
+      if (object.userData.playerCenterOcclusion) {
+        const inverse = object.matrixWorld.clone().invert();
+        panels.push({ inverse, direction: towardCamera.clone().transformDirection(inverse) });
+      }
+      if (object.name === 'PlayerMesh') players.push(object);
+    });
+    for (const player of players) {
+      const center = player.getWorldPosition(new THREE.Vector3());
+      const hidden = panels.some(({ inverse, direction }) => {
+        if (Math.abs(direction.z) < 1e-8) return false;
+        const point = center.clone().applyMatrix4(inverse);
+        const distance = -point.z / direction.z;
+        if (distance <= 0) return false;
+        point.addScaledVector(direction, distance);
+        return Math.abs(point.x) <= 29 && Math.abs(point.y) <= 36;
+      });
+      player.userData.doorOccluded = hidden;
+      for (const child of player.children) child.visible = !hidden;
+    }
   }
 
   public dispose(): void {

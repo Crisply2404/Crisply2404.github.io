@@ -17,7 +17,7 @@ async function runTutorialChecks(): Promise<Record<string, unknown>> {
   const canvas = root.querySelector<HTMLCanvasElement>('canvas')!;
   const gl = canvas.getContext('webgl2')!;
   const mobile = matchMedia('(pointer: coarse)').matches;
-  const columns = mobile ? 4 : 5;
+  const columns = mobile ? 5 : 6;
   const frames = Array.from({ length: columns }, () => new Set<number>());
   const fingerFrames = new Set<string>();
   const taps = new Set<boolean>();
@@ -60,7 +60,7 @@ async function runTutorialChecks(): Promise<Record<string, unknown>> {
   if (mobile) {
     check(fingerFrames.size > 20 && taps.size === 2, 'Mobile tutorial must animate tap, pinch and pan'); checks += 1;
     const fingers = [...root.querySelectorAll<HTMLElement>('.tutorial-finger')];
-    check(fingers.length === 3 && fingers.every((finger) => {
+    check(fingers.length === 4 && fingers.every((finger) => {
       const style = getComputedStyle(finger);
       return style.borderTopWidth === '1px' && style.backgroundColor === 'rgb(0, 0, 0)'
         && getComputedStyle(finger, '::after').borderTopWidth === '1px';

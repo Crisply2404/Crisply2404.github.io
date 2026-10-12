@@ -32,7 +32,7 @@ export class ControlTutorial {
   private readonly diagram?: ControlDiagram;
   private readonly rotation = new THREE.Group();
   private readonly mobile = matchMedia('(pointer: coarse)').matches;
-  private readonly anchors = Array.from({ length: this.mobile ? 4 : 5 }, () => new THREE.Group());
+  private readonly anchors = Array.from({ length: this.mobile ? 5 : 6 }, () => new THREE.Group());
   private readonly viewDemo = new THREE.Group();
   private readonly keys = new Map<string, HTMLElement>();
   private readonly modeDots: HTMLElement[];
@@ -41,6 +41,10 @@ export class ControlTutorial {
   private readonly movement?: BallDemo;
   private readonly jumping: BallDemo;
   private readonly clicking: BallDemo;
+  private readonly speaking = new THREE.Group();
+  private readonly speechGraphic: THREE.Mesh;
+  private readonly speechFill: THREE.Mesh;
+  private readonly speechTip: HTMLElement;
   private readonly ripple: NavigationRipple;
   private readonly mouseTarget = new THREE.Vector3(-40, 40.02, 0);
   private readonly resizeObserver = new ResizeObserver(() => this.resize());
@@ -66,7 +70,10 @@ export class ControlTutorial {
       <div class="tutorial-input" data-control="rotate" role="img" aria-label="Rotate view">
         <div class="tutorial-rotation-keys"><kbd data-key="q"><img src="${rotateLeft}" alt=""></kbd><kbd data-key="e"><img src="${rotateRight}" alt=""></kbd></div>
       </div>
-      <div class="tutorial-input" data-control="jump" role="img" aria-label="Jump"><kbd class="tutorial-wide-key" data-key="space">JUMP</kbd></div>` : `
+      <div class="tutorial-input" data-control="jump" role="img" aria-label="Jump"><kbd class="tutorial-wide-key" data-key="space">JUMP</kbd></div>
+      <div class="tutorial-input tutorial-speech-input" data-control="speech" role="img" aria-label="Tap your ball: Speak">
+        <i class="tutorial-finger tutorial-speech-tap"></i><i class="tutorial-speech-bubble"><i></i><i></i><i></i></i>
+      </div>` : `
       <div class="tutorial-input" data-control="move" role="img" aria-label="WASD: Move">
         <div class="tutorial-wasd"><kbd data-key="w">W</kbd><kbd data-key="a">A</kbd><kbd data-key="s">S</kbd><kbd data-key="d">D</kbd></div>
       </div>
@@ -80,12 +87,16 @@ export class ControlTutorial {
       <div class="tutorial-input tutorial-tab" data-control="mode" role="img" aria-label="Tab: Switch control mode">
         <kbd class="tutorial-wide-key" data-key="tab">Tab</kbd><div class="tutorial-modes"><i></i><i></i><i></i></div>
       </div>
+      <div class="tutorial-input tutorial-speech-input" data-control="speech" role="img" aria-label="Enter: Speak">
+        <kbd class="tutorial-wide-key" data-key="enter">Enter</kbd><i class="tutorial-speech-bubble"><i></i><i></i><i></i></i>
+      </div>
       `;
     this.wrapper.append(this.canvas, inputs); root.append(this.wrapper);
     for (const key of inputs.querySelectorAll<HTMLElement>('[data-key]')) this.keys.set(key.dataset.key!, key);
     this.modeDots = [...inputs.querySelectorAll<HTMLElement>('.tutorial-modes i')];
     this.tapSymbol = inputs.querySelector<HTMLElement>(this.mobile ? '.tutorial-tap' : '.tutorial-mouse-button')!;
     this.fingers = [...inputs.querySelectorAll<HTMLElement>('.tutorial-gesture .tutorial-finger')];
+    this.speechTip = inputs.querySelector<HTMLElement>('.tutorial-speech-bubble')!;
 
     const walkingBlocks: BlockData[] = [[0, 0], [-1, 0], [0, -1], [-1, -1], [1, 0], [1, -1]]
       .map(([gx, gz]) => ({ gx, gy: 0, gz, type: 'standard' }));
@@ -108,8 +119,26 @@ export class ControlTutorial {
       viewContent.add(this.builder.createLevelMesh(clickingBlocks), viewBall); viewContent.position.y = -20;
       this.viewDemo.add(viewContent);
     } else this.diagram = new ControlDiagram(this.builder);
-    const contents = this.mobile ? [this.clicking.content, this.viewDemo, this.rotation, this.jumping.content]
-      : [this.movement!.content, this.clicking.content, this.jumping.content, this.rotation, this.diagram!];
+    const speakingBall = this.builder.createPlayerMesh();
+    const speakingPlatform = this.builder.createLevelMesh(jumpBlocks);
+    speakingBall.position.y = 40.02;
+    this.speaking.add(speakingPlatform, speakingBall);
+    this.speaking.position.y = -20;
+    this.speechGraphic = this.builder.createStroke([
+      [new THREE.Vector3(-22, 72, 0), new THREE.Vector3(22, 72, 0)],
+      [new THREE.Vector3(22, 72, 0), new THREE.Vector3(22, 92, 0)],
+      [new THREE.Vector3(22, 92, 0), new THREE.Vector3(-22, 92, 0)],
+      [new THREE.Vector3(-22, 92, 0), new THREE.Vector3(-22, 72, 0)],
+      [new THREE.Vector3(-12, 82, 0), new THREE.Vector3(-5, 82, 0)],
+      [new THREE.Vector3(5, 82, 0), new THREE.Vector3(12, 82, 0)],
+    ]);
+    this.speechGraphic.geometry.translate(0, -82, 0);
+    this.speechGraphic.position.y = 82;
+    this.speechFill = new THREE.Mesh(new THREE.PlaneGeometry(44, 20), this.builder.materialBlack);
+    this.speechFill.position.set(0, 82, -0.02);
+    this.speaking.add(this.speechFill, this.speechGraphic);
+    const contents = this.mobile ? [this.clicking.content, this.viewDemo, this.rotation, this.jumping.content, this.speaking]
+      : [this.movement!.content, this.clicking.content, this.jumping.content, this.rotation, this.diagram!, this.speaking];
     this.anchors.forEach((anchor, index) => { anchor.add(contents[index]); this.scene.add(anchor); });
     this.camera.position.set(Math.sin(Math.PI / 4) * VIEWPORT.cameraDistance, VIEWPORT.cameraHeight,
       Math.cos(Math.PI / 4) * VIEWPORT.cameraDistance);
@@ -137,6 +166,20 @@ export class ControlTutorial {
     this.setKey('tab', this.tick % 120 < 12);
     this.setKey('q', phase < 12); this.setKey('left', phase < 12);
     this.setKey('e', phase >= 120 && phase < 132); this.setKey('right', phase >= 120 && phase < 132);
+    const speechPhase = this.tick % 180;
+    const opening = Math.min(1, Math.max(0, (speechPhase - 24) / 12));
+    const closing = Math.min(1, Math.max(0, (150 - speechPhase) / 12));
+    const visible = opening * closing;
+    this.speechGraphic.visible = visible > 0;
+    this.speechFill.visible = visible > 0;
+    this.speechGraphic.scale.setScalar(0.8 + visible * 0.2);
+    this.speechGraphic.quaternion.copy(this.camera.quaternion);
+    this.speechFill.quaternion.copy(this.camera.quaternion);
+    this.speechFill.scale.copy(this.speechGraphic.scale);
+    this.speechTip.style.opacity = String(visible);
+    this.speechTip.style.transform = `translateY(${(1 - visible) * 4}px) scale(${0.8 + visible * 0.2})`;
+    this.setKey('enter', speechPhase >= 18 && speechPhase < 30 || speechPhase >= 132 && speechPhase < 144);
+    this.wrapper.querySelector('.tutorial-speech-tap')?.classList.toggle('is-active', speechPhase >= 18 && speechPhase < 30);
     if (this.mobile) this.animateGesture();
     // 球体共用主场景的摄像机朝向与球面深度。
     this.scene.updateMatrixWorld(true);

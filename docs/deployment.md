@@ -12,6 +12,10 @@ Set these repository secrets:
 
 The workflow checks out the private source into its temporary build workspace, runs its build, and copies only `dist/` into the Pages artifact at `/chuan-zi/`.
 
+The nested local `chuan-zi/` folder has its own Git repository. The main site's `.gitignore` excludes its files; `.vscode/settings.json` tells this workspace to ignore the nested repository in Source Control. Pages builds use the committed private revision selected by the `CHUAN_ZI_REF` repository variable. Manual workflow runs can select another private branch or commit through the `chuan_zi_ref` input. Local updates must be committed and pushed to that private repository before Actions can build them.
+
+The current published revision remains pinned while the updated private project awaits publication. Its new `glyphs-source.zip` contains original glyph data, generated glyph JSON, licenses and two generator scripts. Publication of that download package is pending the user's decision. Original project files remain unchanged.
+
 ## Presence relay
 
 The `presence/` directory deploys a Cloudflare Worker and one SQLite-backed Durable Object. The public `/lobby` endpoint accepts WebSocket connections from the site. Hibernation keeps idle connections open. Each connection attachment stores that visitor's latest position; closing it removes the visitor. The service exposes `/health` and relays `snapshot`, `state`, and `leave` messages without writing position history.

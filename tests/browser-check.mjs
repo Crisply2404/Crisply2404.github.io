@@ -60,13 +60,13 @@ console.log('阅读页固定站点名称、分类标题尺寸和主页返回检�
 await page.goto('http://localhost:5174/tests/game.html');
 await page.waitForFunction(() => window.game?.player.grounded);
 assert.equal(await page.locator('.door-links').count(), 0);
-assert.equal(await page.locator('.tutorial-input').count(), 5);
+assert.equal(await page.locator('.tutorial-input').count(), 6);
 assert.deepEqual(await page.locator('.tutorial-wasd kbd').allTextContents(), ['W', 'A', 'S', 'D']);
 assert.equal(await page.locator('.tutorial-mouse').count(), 1);
 assert.equal(await page.locator('[data-control="mode"]').getAttribute('aria-label'), 'Tab: Switch control mode');
 assert.equal(await page.locator('[data-key="tab"]').textContent(), 'Tab');
 assert.deepEqual(await page.locator('.tutorial-input').evaluateAll((items) => items.map((item) => item.dataset.control)),
-  ['move', 'click', 'jump', 'rotate', 'mode']);
+  ['move', 'click', 'jump', 'rotate', 'mode', 'speech']);
 const keyStyles = await page.locator('.tutorial-input kbd').evaluateAll((keys) => keys.map((key) => {
   const style = getComputedStyle(key), bounds = key.getBoundingClientRect();
   return { key: key.dataset.key, radius: style.borderRadius, border: style.borderTopWidth,
@@ -74,7 +74,7 @@ const keyStyles = await page.locator('.tutorial-input kbd').evaluateAll((keys) =
 }));
 for (const key of keyStyles) {
   assert.equal(key.radius, '0px'); assert.equal(key.border, '1px');
-  if (['space', 'tab'].includes(key.key)) assert.ok(key.width > key.height);
+  if (['space', 'tab', 'enter'].includes(key.key)) assert.ok(key.width > key.height);
   else assert.equal(key.width, key.height);
   assert.equal(key.height, keyStyles[0].height);
 }
@@ -103,10 +103,13 @@ await page.keyboard.press('Tab');
 assert.equal(await page.evaluate(() => window.game.orientation), 0);
 await page.keyboard.down('d');
 await page.waitForFunction(() => window.game.player.pos.z < 15);
+const beforeRotation = await state();
 await page.keyboard.press('q');
 assert.equal((await state()).angle, Math.PI * 3 / 4);
 await page.waitForFunction(() => window.game.player.pos.z < -15);
-assert.ok(Math.abs((await state()).vx) < 0.02);
+const afterRotation = await state();
+assert.ok(Math.abs(afterRotation.x - beforeRotation.x) < 0.1,
+  `Continuous movement must preserve its world direction while rotating: ${JSON.stringify({ beforeRotation, afterRotation })}`);
 await page.keyboard.up('d'); await page.keyboard.press('r');
 await page.waitForFunction(() => window.game.player.grounded);
 await page.keyboard.down(' ');
@@ -159,7 +162,7 @@ assert.equal(await mobile.evaluate(() => innerWidth), 390);
 assert.equal(await mobile.locator('.mobile-controls').isVisible(), true);
 assert.equal(await mobile.locator('.touch-button').count(), 3);
 assert.equal(await mobile.locator('.dpad').count(), 0);
-assert.equal(await mobile.locator('.tutorial-input').count(), 4);
+assert.equal(await mobile.locator('.tutorial-input').count(), 5);
 assert.equal(await mobile.locator('.tutorial-wasd').count(), 0);
 assert.equal(await mobile.locator('.tutorial-tap').count(), 1);
 assert.equal(await mobile.locator('.tutorial-gesture .tutorial-finger').count(), 2);

@@ -13,10 +13,10 @@ The homepage mode that lists the corridor doors from top to bottom using the sam
 _Avoid_: normal page, fallback page
 
 **Entrance ball**:
-The single MONO TOWER player ball beside the List view entrance titles. It starts beside the first entrance and follows the hovered or focused title with an ease-out movement. It also responds to the game's keyboard movement, jumping, rotation and control modes. A Cursor block pushes it and the Cursor spike breaks its outline into fragments. When the cursor moves away it respawns beside the nearest title. Hovering or focusing an entrance returns it to that entrance. Its colors invert with the row. Platform motion preferences preserve the full animation.
+The single MONO TOWER player ball beside the List view entrance titles. It starts beside the first entrance and follows the hovered or focused title with an ease-out movement. It also responds to the game's keyboard movement, jumping, rotation and control modes. View rotation preserves the ball's current screen center; only movement changes its position. A Cursor block pushes it and the Cursor spike breaks its outline into fragments. When the cursor moves away it respawns beside the nearest title. Hovering or focusing an entrance returns it to that entrance. Its colors invert with the row. Platform motion preferences preserve the full animation.
 
 **Game cursor**:
-The original standard block with one spike on top, replacing the mouse cursor in the List view. The spike tip marks the pointer position. Its view rotates with the keyboard, and its projected block and spike geometry define the Entrance ball collision areas. It is hidden for touch input and removed when leaving the List view.
+The original standard block with one spike on top, replacing the mouse cursor in the List view. The spike tip marks the pointer position. Its view rotates around its own center with the keyboard, and its projected block and spike geometry define the Entrance ball collision areas. Each pixel inverts over highlighted entrance regions while preserving its appearance over black regions. It is hidden for touch input and removed when leaving the List view.
 
 **Corridor**:
 A straight, extendable passage whose configured doors are the site's entrances.

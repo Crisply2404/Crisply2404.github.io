@@ -35,5 +35,7 @@ npm run deploy
 
 Use the resulting `https://crisply2404-presence.<account-subdomain>.workers.dev` origin to set the GitHub secret `VITE_PRESENCE_WS_URL` to `wss://crisply2404-presence.<account-subdomain>.workers.dev/lobby`, then run the Pages workflow. The allowed site origins and lobby binding are configured in `presence/wrangler.json`.
 
+The deployed lobby is `wss://crisply2404-presence.tcoinsm.workers.dev/lobby`. Its health endpoint is `https://crisply2404-presence.tcoinsm.workers.dev/health`. GitHub Pages builds receive this WSS endpoint through the repository's `VITE_PRESENCE_WS_URL` secret.
+
 After publishing, run the relay check with `PRESENCE_URL` and `SITE_ORIGIN=https://crisply2404.github.io`, and the browser check with `SITE_URL=https://crisply2404.github.io` and `PRESENCE_HEALTH_URL` pointing to the Worker's `/health` endpoint. Local validation uses the actual Workers runtime, HTTP endpoints, WebSocket clients, and two browser contexts.
 

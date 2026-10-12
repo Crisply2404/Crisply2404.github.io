@@ -24,6 +24,7 @@ export class EntranceBall {
   private readonly velocity = this.player.vel;
   private readonly shards = new THREE.Group();
   private readonly pushed = new THREE.Vector2();
+  private readonly screenOffset = new THREE.Vector2();
   private selectedRow: HTMLAnchorElement;
   private animationFrame = 0;
   private previousTime = performance.now();
@@ -115,6 +116,7 @@ export class EntranceBall {
     this.player.place(new THREE.Vector3());
     this.player.grounded = true;
     this.pushed.set(0, 0);
+    this.screenOffset.set(0, 0);
     this.displaced = false;
     this.canvas.getBoundingClientRect();
     this.canvas.style.transition = '';
@@ -177,6 +179,7 @@ export class EntranceBall {
 
   private step(): void {
     if (this.brokenAt !== undefined) return;
+    const previousPosition = this.position.clone();
     this.player.consumeJump();
     const x = Number(this.keys.has('d')) - Number(this.keys.has('a'));
     const z = Number(this.keys.has('s')) - Number(this.keys.has('w'));
@@ -199,16 +202,19 @@ export class EntranceBall {
     } else if (this.player.coyoteTime > 0) this.player.coyoteTime -= 1;
     this.player.consumeJump();
     if (this.player.jumpBuffer > 0) this.player.jumpBuffer -= 1;
+    const motion = this.position.clone().sub(previousPosition);
+    const right = new THREE.Vector3().setFromMatrixColumn(this.viewCamera.matrixWorld, 0);
+    const up = new THREE.Vector3().setFromMatrixColumn(this.viewCamera.matrixWorld, 1);
+    this.screenOffset.x += motion.dot(right) / this.unitsPerPixel;
+    this.screenOffset.y -= motion.dot(up) / this.unitsPerPixel;
     this.wasMoving = Boolean(x || z);
     if (this.displaced) this.placeBall();
     this.collideCursor();
   }
 
   private placeBall(): void {
-    const right = new THREE.Vector3().setFromMatrixColumn(this.viewCamera.matrixWorld, 0);
-    const up = new THREE.Vector3().setFromMatrixColumn(this.viewCamera.matrixWorld, 1);
-    const x = this.position.dot(right) / this.unitsPerPixel + this.pushed.x;
-    const y = -this.position.dot(up) / this.unitsPerPixel + this.pushed.y;
+    const x = this.screenOffset.x + this.pushed.x;
+    const y = this.screenOffset.y + this.pushed.y;
     const bounds = this.root.getBoundingClientRect();
     const baseLeft = bounds.left + this.canvas.offsetLeft;
     const displayedX = THREE.MathUtils.clamp(x, 16 - baseLeft, innerWidth - 48 - baseLeft);

@@ -454,6 +454,7 @@ a {
   width: 96px;
   height: 96px;
   pointer-events: none;
+  mix-blend-mode: difference;
   transform: translate(-32px, -32px);
 }
 

@@ -22,11 +22,24 @@ await page.waitForTimeout(350);
 await page.keyboard.up('d');
 const moved = await ball.boundingBox();
 assert.ok(moved.x > before.x + 20, 'WASD must move the entrance ball');
+await page.waitForTimeout(700);
+const beforeRotation = await ball.boundingBox();
+const beforeCursorRotation = await page.locator('.game-cursor').boundingBox();
 const cursorBefore = PNG.sync.read(await page.locator('.game-cursor').screenshot());
 await page.keyboard.press('q');
 await page.waitForTimeout(80);
 const cursorAfter = PNG.sync.read(await page.locator('.game-cursor').screenshot());
 assert.notDeepEqual(cursorBefore.data, cursorAfter.data, 'Q must rotate the game cursor view');
+const duringRotation = await ball.boundingBox();
+const duringCursorRotation = await page.locator('.game-cursor').boundingBox();
+assert.ok(Math.hypot(duringCursorRotation.x - beforeCursorRotation.x, duringCursorRotation.y - beforeCursorRotation.y) < 0.5,
+  'The rotating cursor must preserve its own screen center');
+assert.ok(Math.hypot(duringRotation.x - beforeRotation.x, duringRotation.y - beforeRotation.y) < 0.5,
+  `Rotating the view must preserve the moved ball center: ${JSON.stringify({ beforeRotation, duringRotation })}`);
+await page.waitForTimeout(500);
+const afterRotation = await ball.boundingBox();
+assert.ok(Math.hypot(afterRotation.x - beforeRotation.x, afterRotation.y - beforeRotation.y) < 0.5,
+  'Rotation must finish with every element at its own center');
 await page.keyboard.press('ArrowRight');
 await page.waitForTimeout(500);
 
@@ -36,6 +49,35 @@ const essay = await page.getByRole('link', { name: 'Essays', exact: true }).boun
 const restored = await ball.boundingBox();
 assert.ok(Math.abs(restored.y + 16 - essay.y - essay.height / 2) < 0.5);
 assert.ok(Math.abs(restored.x - before.x) < 0.5, 'Hover must restore the entrance anchor after keyboard play');
+
+await page.mouse.move(1100, 400);
+const darkCursorBounds = await page.locator('.game-cursor').boundingBox();
+const darkCursor = PNG.sync.read(await page.screenshot({ clip: darkCursorBounds }));
+await page.mouse.move(essay.x + essay.width / 2, essay.y + essay.height - 20);
+await page.waitForTimeout(200);
+const mixedCursorBounds = await page.locator('.game-cursor').boundingBox();
+const mixedCursor = PNG.sync.read(await page.screenshot({ clip: mixedCursorBounds }));
+assert.equal(mixedCursor.width, darkCursor.width);
+assert.equal(mixedCursor.height, darkCursor.height);
+let invertedStrokes = 0;
+let unchangedStrokes = 0;
+for (let y = 0; y < mixedCursor.height; y += 1) {
+  const screenY = Math.floor(mixedCursorBounds.y) + y;
+  if (Math.abs(screenY - essay.y - essay.height) < 2) continue;
+  for (let x = 0; x < mixedCursor.width; x += 1) {
+    const index = (y * mixedCursor.width + x) * 4;
+    const dark = darkCursor.data[index];
+    const mixed = mixedCursor.data[index];
+    if (screenY >= essay.y && screenY < essay.y + essay.height) {
+      assert.ok(Math.abs(dark + mixed - 255) <= 1, 'Cursor pixels must invert only within the highlighted row');
+      if (dark > 100) invertedStrokes += 1;
+    } else {
+      assert.ok(Math.abs(dark - mixed) <= 1, 'Cursor pixels over black must preserve their appearance');
+      if (dark > 100) unchangedStrokes += 1;
+    }
+  }
+}
+assert.ok(invertedStrokes > 10 && unchangedStrokes > 10, 'The same cursor must span inverted and normal regions');
 
 const center = { x: restored.x + 16, y: restored.y + 16 };
 await page.mouse.move(center.x + 100, center.y - 100);

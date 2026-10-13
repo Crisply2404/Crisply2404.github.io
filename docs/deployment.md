@@ -14,7 +14,9 @@ The workflow checks out the private source into its temporary build workspace, r
 
 The nested local `chuan-zi/` folder has its own Git repository. The main site's `.gitignore` excludes its files; `.vscode/settings.json` tells this workspace to ignore the nested repository in Source Control. Pages builds use the committed private revision selected by the `CHUAN_ZI_REF` repository variable. Manual workflow runs can select another private branch or commit through the `chuan_zi_ref` input. Local updates must be committed and pushed to that private repository before Actions can build them.
 
-The current published revision remains pinned while the updated private project awaits publication. Its new `glyphs-source.zip` contains original glyph data, generated glyph JSON, licenses and two generator scripts. Publication of that download package is pending the user's decision. Original project files remain unchanged.
+`glyphs-source.zip` is an approved public download linked from the project's data and license page. It contains original glyph data, generated glyph JSON, licenses and two generator scripts. The `CHUAN_ZI_REF` variable selects private commit `c33eaf2e4960ea8e47b02a67d96f95f98e4c7862`, and `CHUAN_ZI_WS_URL` is configured as `wss://chuan-zi-online.tcoinsm.workers.dev/ws` so the published webpage connects to the existing game service. The original local project files remain unchanged.
+
+The workflow listens for pushes to this site's `main` branch and manual runs. A push to the private project does not trigger this workflow. Publishing a newly selected private commit requires updating `CHUAN_ZI_REF` and running `deploy.yml`, or providing the commit through its `chuan_zi_ref` input.
 
 ## Presence relay
 

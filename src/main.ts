@@ -4,6 +4,8 @@ import type { GameScene } from './game';
 import type { EntranceBall } from './entrance-ball';
 import type { CollectionKind } from './content';
 import type { ViewMode } from './types';
+import { resetPagePlayState } from './page-play-state';
+import { ViewToggleHint } from './view-toggle-hint';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) {
@@ -13,6 +15,7 @@ const appRoot = app;
 
 let activeScene: GameScene | undefined;
 let activeEntrances: EntranceBall | undefined;
+let toggleHint: ViewToggleHint | undefined;
 let routeGeneration = 0;
 const modeStorageKey = 'crisply2404-home-mode';
 
@@ -26,6 +29,8 @@ function setMode(mode: ViewMode): void {
 }
 
 function disposeScene(): void {
+  toggleHint?.destroy();
+  toggleHint = undefined;
   activeScene?.destroy();
   activeScene = undefined;
   activeEntrances?.destroy();
@@ -38,8 +43,8 @@ async function renderHome(): Promise<void> {
   if (getMode() === 'list') {
     appRoot.innerHTML = renderListPage();
     appRoot.querySelector<HTMLButtonElement>('[data-view-toggle]')?.addEventListener('click', () => setMode('game'));
-    const [{ EntranceBall }, { physicsReady }] = await Promise.all([import('./entrance-ball'), import('./mono/physics')]);
-    await physicsReady;
+    const [{ EntranceBall, pagePhysicsReady }, { physicsReady }] = await Promise.all([import('./entrance-ball'), import('./mono/physics')]);
+    await Promise.all([physicsReady, pagePhysicsReady]);
     if (generation !== routeGeneration) return;
     const entrances = appRoot.querySelector<HTMLElement>('.entrance-list');
     if (!entrances) throw new Error('Site entrances are unavailable');
@@ -56,7 +61,9 @@ async function renderHome(): Promise<void> {
       <main class="scene-root"></main>
     </div>
   `;
-  appRoot.querySelector<HTMLButtonElement>('[data-view-toggle]')?.addEventListener('click', () => setMode('list'));
+  const toggle = appRoot.querySelector<HTMLButtonElement>('[data-view-toggle]')!;
+  toggleHint = new ViewToggleHint(toggle);
+  toggle.addEventListener('click', () => setMode('list'));
   const sceneRoot = appRoot.querySelector<HTMLElement>('.scene-root');
   if (!sceneRoot) throw new Error('Scene root is unavailable');
   const [{ GameScene }, { physicsReady }] = await Promise.all([import('./game'), import('./mono/physics')]);
@@ -89,8 +96,8 @@ function renderRoute(): void {
 }
 
 async function installPagePlay(generation: number): Promise<void> {
-  const [{ EntranceBall }, { physicsReady }] = await Promise.all([import('./entrance-ball'), import('./mono/physics')]);
-  await physicsReady;
+  const [{ EntranceBall, pagePhysicsReady }, { physicsReady }] = await Promise.all([import('./entrance-ball'), import('./mono/physics')]);
+  await Promise.all([physicsReady, pagePhysicsReady]);
   await document.fonts.ready;
   if (generation !== routeGeneration) return;
   const root = appRoot.querySelector<HTMLElement>('.reading-column');
@@ -98,12 +105,18 @@ async function installPagePlay(generation: number): Promise<void> {
   activeEntrances = new EntranceBall(root);
 }
 
-window.addEventListener('popstate', renderRoute);
+function renderHistoryPage(): void {
+  disposeScene();
+  resetPagePlayState();
+  renderRoute();
+}
+
+window.addEventListener('popstate', renderHistoryPage);
 window.addEventListener('pagehide', () => {
   routeGeneration += 1;
   disposeScene();
 });
 window.addEventListener('pageshow', (event) => {
-  if (event.persisted) renderRoute();
+  if (event.persisted) renderHistoryPage();
 });
 renderRoute();

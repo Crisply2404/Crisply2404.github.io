@@ -6,6 +6,7 @@ import { GameCursor } from './mono/game-cursor';
 import { PlayerState } from './mono/physics';
 import { PageLetters } from './page-letters';
 import { readPagePlayState, savePagePlayState } from './page-play-state';
+export { pagePhysicsReady } from './page-letters';
 
 export class EntranceBall {
   private readonly canvas = document.createElement('canvas');
@@ -30,6 +31,7 @@ export class EntranceBall {
   private readonly shards = new THREE.Group();
   private readonly pushed = new THREE.Vector2();
   private readonly screenOffset = new THREE.Vector2();
+  private readonly shardMotion: { piece: THREE.Mesh; angle: number; distance: number; spin: number }[] = [];
   private selectedRow: HTMLElement;
   private animationFrame = 0;
   private previousTime = performance.now();
@@ -59,13 +61,6 @@ export class EntranceBall {
     document.body.classList.add('list-cursor-mode');
     this.camera.position.z = 1000;
     this.scene.add(this.ball, this.shards);
-    for (let index = 0; index < 8; index += 1) {
-      const points = Array.from({ length: 5 }, (_, step) => {
-        const angle = index * Math.PI / 4 + step * Math.PI / 24;
-        return new THREE.Vector3(Math.cos(angle) * CONFIG.playerRadius, Math.sin(angle) * CONFIG.playerRadius, 0);
-      });
-      this.shards.add(this.builder.createStroke(points.slice(1).map((point, step) => [points[step], point])));
-    }
     this.shards.visible = false;
     for (const row of this.rows) {
       const select = (): void => {
@@ -321,6 +316,7 @@ export class EntranceBall {
     this.cursorBlocked = true;
     if (contact.kind === 'spike') {
       this.brokenAt = performance.now();
+      this.createShards();
       this.ball.visible = false;
       this.shards.visible = true;
       this.canvas.classList.add('is-broken');
@@ -353,17 +349,45 @@ export class EntranceBall {
   }
 
   private animateShards(now: number): void {
-    const phase = Math.min((now - this.brokenAt!) / 280, 1);
-    this.shards.children.forEach((piece, index) => {
-      const angle = index * Math.PI / 4;
-      piece.position.set(Math.cos(angle) * phase * 8, Math.sin(angle) * phase * 8, 0);
-      piece.rotation.z = phase * (index % 2 ? 1 : -1);
+    const phase = Math.min((now - this.brokenAt!) / this.shardDuration, 1);
+    this.shardMotion.forEach(({ piece, angle, distance, spin }) => {
+      const eased = phase * phase * (3 - 2 * phase);
+      piece.position.set(Math.cos(angle) * eased * distance, Math.sin(angle) * eased * distance, 0);
+      piece.rotation.z = eased * spin;
       piece.scale.setScalar(1 - phase);
     });
     this.rendering.render(this.scene, this.camera);
     if (phase === 1 && !this.cursor.contact(this.ballCenter())) {
       this.cursorBlocked = false;
       this.respawn();
+    }
+  }
+
+  private shardDuration = 280;
+
+  private createShards(): void {
+    for (const piece of this.shards.children) {
+      if (piece instanceof THREE.Mesh) piece.geometry.dispose();
+    }
+    this.shards.clear();
+    this.shardMotion.length = 0;
+    const count = THREE.MathUtils.randInt(6, 12);
+    this.shardDuration = THREE.MathUtils.randFloat(280, 420);
+    const weights = Array.from({ length: count }, () => THREE.MathUtils.randFloat(0.5, 1.5));
+    const sum = weights.reduce((total, weight) => total + weight, 0);
+    let start = Math.random() * Math.PI * 2;
+    for (let index = 0; index < count; index += 1) {
+      const span = weights[index] / sum * Math.PI * 2;
+      const steps = Math.max(3, Math.ceil(span / 0.1));
+      const points = Array.from({ length: steps + 1 }, (_, pointIndex) => {
+        const angle = start + span * 0.92 * pointIndex / steps;
+        return new THREE.Vector3(Math.cos(angle) * CONFIG.playerRadius, Math.sin(angle) * CONFIG.playerRadius, 0);
+      });
+      start += span;
+      const piece = this.builder.createStroke(points.slice(1).map((point, pointIndex) => [points[pointIndex], point]));
+      this.shards.add(piece);
+      this.shardMotion.push({ piece, angle: THREE.MathUtils.randFloat(0, Math.PI * 2),
+        distance: THREE.MathUtils.randFloat(8, 24), spin: THREE.MathUtils.randFloat(-2.8, 2.8) });
     }
   }
 }

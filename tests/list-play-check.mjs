@@ -91,6 +91,22 @@ await page.waitForTimeout(500);
 const reborn = await ball.boundingBox();
 assert.ok(Math.abs(reborn.y + 16 - essay.y - essay.height / 2) < 0.5, 'Ball must respawn before the nearest title');
 
+const fractureImages = [];
+for (let attempt = 0; attempt < 3; attempt += 1) {
+  const current = await ball.boundingBox();
+  await page.mouse.move(current.x + 116, current.y - 84);
+  await page.mouse.move(current.x + 16, current.y + 16);
+  await page.waitForFunction(() => document.querySelector('.entrance-ball').classList.contains('is-broken'));
+  await page.waitForTimeout(70);
+  fractureImages.push(PNG.sync.read(await ball.screenshot()).data);
+  await page.mouse.move(1100, 400);
+  await page.waitForFunction(() => !document.querySelector('.entrance-ball').classList.contains('is-broken'));
+  await page.waitForTimeout(450);
+}
+for (let attempt = 1; attempt < fractureImages.length; attempt += 1) {
+  assert.notDeepEqual(fractureImages[attempt], fractureImages[attempt - 1], 'Every fracture must produce different random arcs');
+}
+
 const pushCenter = { x: reborn.x + 16, y: reborn.y + 16 };
 await page.mouse.move(1100, 0);
 await page.mouse.move(pushCenter.x - 100, 0);

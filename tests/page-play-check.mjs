@@ -36,7 +36,9 @@ await page.waitForTimeout(850);
 await page.keyboard.up('d');
 await page.waitForTimeout(1300);
 const lettersAfter = await page.locator('.page-letter').evaluateAll((elements) => elements.map((element) => element.style.transform));
-assert.ok(lettersAfter.some((value, index) => value !== lettersBefore[index]), 'The ball must push separate letters');
+assert.ok(lettersAfter.some((value, index) => value !== lettersBefore[index]),
+  `The ball must push separate letters: ${JSON.stringify({ before, after: await ball.boundingBox(), heading,
+    lettersBefore: lettersBefore.slice(11, 16), lettersAfter: lettersAfter.slice(11, 16) })}`);
 assert.ok(lettersAfter.some((value) => !value.endsWith('rotate(0rad)')), 'Letters must rotate through collision');
 const ballAfter = await ball.boundingBox();
 await page.evaluate(() => {
@@ -62,13 +64,19 @@ await page.goBack();
 await page.waitForSelector('.page-letter');
 await page.waitForTimeout(300);
 const returned = await ball.boundingBox();
-assert.ok(Math.hypot(returned.x - ballAfter.x, returned.y - ballAfter.y) < 0.5, 'History must preserve the page ball position');
+assert.ok(Math.hypot(returned.x - before.x, returned.y - before.y) < 0.5, 'History must restore the title spawn');
 const returnedLetters = await page.locator('.page-letter').evaluateAll((elements) => elements.map((element) => element.style.transform));
-assert.ok(returnedLetters.some((value) => !value.endsWith('rotate(0rad)')), 'History must preserve letter rotation');
+assert.ok(returnedLetters.every((value) => value.endsWith('rotate(0rad)')), 'History must restore the initial letter arrangement');
+await page.goForward();
+await page.waitForSelector('.entrance-ball');
+assert.ok(await page.locator('.page-letter').evaluateAll((elements) => elements.every((element) => element.style.transform.endsWith('rotate(0rad)'))),
+  'Forward navigation must restore the initial letter arrangement');
+await page.goBack();
+await page.waitForSelector('.entrance-ball');
 await page.setViewportSize({ width: 1000, height: 700 });
 await page.waitForTimeout(500);
-assert.ok(await page.locator('.page-letter').evaluateAll((elements) => elements.some((element) => !element.style.transform.endsWith('rotate(0rad)'))),
-  'Resizing must preserve letter rotation');
+assert.ok(await page.locator('.page-letter').evaluateAll((elements) => elements.every((element) => element.style.transform.endsWith('rotate(0rad)'))),
+  'Resizing must preserve the current letter arrangement');
 await page.setViewportSize({ width: 1280, height: 800 });
 await page.waitForTimeout(300);
 await page.reload();
@@ -118,9 +126,9 @@ const article = await browser.newPage({ viewport: { width: 1000, height: 700 } }
 article.on('pageerror', (error) => errors.push(error.message));
 await article.goto(`${url}/tests/page-play.html`);
 await article.evaluate(async () => {
-  const { EntranceBall } = await import('/src/entrance-ball.ts');
+  const { EntranceBall, pagePhysicsReady } = await import('/src/entrance-ball.ts');
   const { physicsReady } = await import('/src/mono/physics.ts');
-  await physicsReady;
+  await Promise.all([physicsReady, pagePhysicsReady]);
   document.querySelector('#app').innerHTML = '<div class="site-shell"><main class="content-root"><div class="reading-column"><h3>中文 title</h3><p>独立文字 abc 文本</p></div></main></div>';
   window.articlePlay = new EntranceBall(document.querySelector('.reading-column'));
 });
@@ -137,4 +145,4 @@ await article.evaluate(() => window.articlePlay.destroy());
 await article.close();
 assert.deepEqual(errors, []);
 await browser.close();
-console.log('逐字碰撞、自由旋转、滚动与后退保留、刷新恢复、网页独立 W 朝上与手机点按检查通过。');
+console.log('逐字碰撞、自由旋转、滚动保留、后退与刷新恢复、网页独立 W 朝上与手机点按检查通过。');

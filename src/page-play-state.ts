@@ -8,6 +8,7 @@ export interface PagePlayState {
 const storageKey = 'crisply2404-page-play';
 const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
 if (navigation?.type === 'reload') sessionStorage.removeItem(storageKey);
+if (navigation?.type === 'back_forward') resetPagePlayState();
 
 export function readPagePlayState(): PagePlayState | undefined {
   const states = JSON.parse(sessionStorage.getItem(storageKey) ?? '{}') as Record<string, PagePlayState>;
@@ -18,4 +19,8 @@ export function savePagePlayState(state: PagePlayState): void {
   const states = JSON.parse(sessionStorage.getItem(storageKey) ?? '{}') as Record<string, PagePlayState>;
   states[location.pathname] = state;
   sessionStorage.setItem(storageKey, JSON.stringify(states));
+}
+
+export function resetPagePlayState(): void {
+  sessionStorage.removeItem(storageKey);
 }

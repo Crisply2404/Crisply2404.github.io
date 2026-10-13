@@ -1,0 +1,64 @@
+import assert from 'node:assert/strict';
+import { chromium } from '@playwright/test';
+import { PNG } from 'pngjs';
+
+const url = process.env.SITE_URL ?? 'http://localhost:5174';
+const browser = await chromium.launch({ channel: 'chrome', headless: true, downloadsPath: '.work/downloads' });
+const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
+const errors = [];
+page.on('pageerror', (error) => errors.push(error.message));
+await page.addInitScript(() => {
+  window.hintTransitions = [];
+  document.addEventListener('transitionend', (event) => {
+    if (event.target.matches('.view-toggle-hint')) window.hintTransitions.push({ property: event.propertyName, duration: event.elapsedTime });
+  });
+});
+await page.goto(url);
+await page.locator('.view-toggle-hint').waitFor();
+await page.waitForFunction(() => window.hintTransitions.some((event) => event.property === 'opacity' && event.duration >= 0.23));
+const button = await page.getByRole('button', { name: 'Switch to list view' }).boundingBox();
+const hint = await page.locator('.view-toggle-hint').boundingBox();
+assert.ok(hint.y > button.y + button.height);
+assert.equal(await page.locator('.view-toggle-hint').textContent(), 'Switch to webpage view');
+await page.reload();
+await page.locator('.view-toggle-hint').waitFor();
+await page.getByRole('button', { name: 'Switch to list view' }).click();
+await page.waitForSelector('.page-letter');
+await page.getByRole('button', { name: 'Switch to game view' }).click();
+await page.waitForSelector('.scene-canvas');
+assert.equal(await page.locator('.view-toggle-hint').count(), 0);
+await page.reload();
+await page.waitForSelector('.scene-canvas');
+assert.equal(await page.locator('.view-toggle-hint').count(), 0);
+await page.getByRole('button', { name: 'Switch to list view' }).click();
+await page.waitForSelector('.page-letter');
+const row = await page.getByRole('link', { name: 'Notes', exact: true }).boundingBox();
+await page.mouse.move(row.x + row.width - 20, row.y + row.height / 2);
+await page.reload();
+await page.waitForSelector('.page-letter');
+await page.waitForTimeout(300);
+const text = await page.locator('.entry-title').first().boundingBox();
+const image = PNG.sync.read(await page.screenshot({ clip: text }));
+let dark = 0;
+for (let index = 0; index < image.data.length; index += 4) if (image.data[index] < 100) dark += 1;
+assert.ok(dark > 100, 'Notes must remain visible when the pointer hovers during page load');
+await page.goto(`${url}/notes/`);
+await page.waitForSelector('.entrance-ball');
+await page.mouse.move(1100, 600);
+await page.keyboard.down('w');
+await page.waitForTimeout(500);
+await page.keyboard.up('w');
+await page.waitForTimeout(500);
+const ball = await page.locator('.entrance-ball').boundingBox();
+assert.ok(ball.y < 70 && ball.y + ball.height > 0, `The ball must cross the header region: ${JSON.stringify(ball)}`);
+const pixels = PNG.sync.read(await page.screenshot({ clip: ball }));
+let outline = 0;
+for (let y = 0; y < pixels.height; y += 1) for (let x = 0; x < pixels.width; x += 1) {
+  if (ball.y + y < 0 || ball.y + y > 70) continue;
+  if (pixels.data[(y * pixels.width + x) * 4] > 100) outline += 1;
+}
+assert.ok(outline > 10, 'The header must not obscure the ball outline');
+await page.close();
+assert.deepEqual(errors, []);
+await browser.close();
+console.log('首次按钮提示与补间、点击记忆、加载前悬停文字和顶部栏前球体检查通过。');

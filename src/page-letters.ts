@@ -1,5 +1,7 @@
-import RAPIER from '@dimforge/rapier3d-compat';
+import RAPIER from '@dimforge/rapier2d-compat';
 import type { LetterState } from './page-play-state';
+
+export const pagePhysicsReady = RAPIER.init();
 
 interface Letter {
   element: HTMLSpanElement;
@@ -12,7 +14,7 @@ interface Letter {
 }
 
 export class PageLetters {
-  private readonly world = new RAPIER.World({ x: 0, y: 0, z: 0 });
+  private readonly world = new RAPIER.World({ x: 0, y: 0 });
   private readonly ball = this.world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased());
   private readonly ballCollider = this.world.createCollider(RAPIER.ColliderDesc.ball(12).setFriction(0.4), this.ball);
   private readonly overlay = document.createElement('div');
@@ -24,6 +26,7 @@ export class PageLetters {
 
   public constructor(private readonly shell: HTMLElement, saved: LetterState[] = [],
     private readonly onSelect: (element: HTMLElement) => void = () => undefined) {
+    this.world.integrationParameters.contact_natural_frequency = 120;
     this.overlay.className = 'page-letter-layer';
     this.overlay.setAttribute('aria-hidden', 'true');
     const walker = document.createTreeWalker(shell, NodeFilter.SHOW_TEXT);
@@ -38,8 +41,8 @@ export class PageLetters {
     for (const source of this.sources) source.classList.add('page-text-source');
     this.letters.forEach((letter, index) => {
       const state = saved[index] ?? { x: 0, y: 0, angle: 0 };
-      letter.body.setTranslation({ x: letter.origin.x + state.x, y: letter.origin.y + state.y, z: 0 }, false);
-      letter.body.setRotation({ x: 0, y: 0, z: Math.sin(state.angle / 2), w: Math.cos(state.angle / 2) }, false);
+      letter.body.setTranslation({ x: letter.origin.x + state.x, y: letter.origin.y + state.y }, false);
+      letter.body.setRotation(state.angle, false);
     });
     this.paint();
   }
@@ -51,22 +54,29 @@ export class PageLetters {
       if (!letter.element.classList.contains('page-header-letter')) continue;
       const position = letter.body.translation();
       letter.origin.y += delta;
-      letter.body.setTranslation({ x: position.x, y: position.y + delta, z: 0 }, false);
+      letter.body.setTranslation({ x: position.x, y: position.y + delta }, false);
     }
     this.scroll = scroll;
     this.ballCollider.setEnabled(enabled);
     if (this.firstStep) {
-      this.ball.setTranslation({ ...center, z: 0 }, false);
+      this.ball.setTranslation(center, false);
       this.firstStep = false;
     }
-    this.ball.setNextKinematicTranslation({ ...center, z: 0 });
-    this.world.step();
+    const previous = this.ball.translation();
+    const distance = Math.hypot(center.x - previous.x, center.y - previous.y);
+    const substeps = Math.max(1, Math.ceil(distance / 0.5));
+    this.world.timestep = 1 / (60 * substeps);
+    for (let step = 1; step <= substeps; step += 1) {
+      this.ball.setNextKinematicTranslation({ x: previous.x + (center.x - previous.x) * step / substeps,
+        y: previous.y + (center.y - previous.y) * step / substeps });
+      this.world.step();
+    }
     this.paint();
   }
 
   public relocateBall(center: { x: number; y: number }): void {
-    this.ball.setTranslation({ ...center, z: 0 }, false);
-    this.ball.setNextKinematicTranslation({ ...center, z: 0 });
+    this.ball.setTranslation(center, false);
+    this.ball.setNextKinematicTranslation(center);
   }
 
   public resize(): void {
@@ -77,9 +87,9 @@ export class PageLetters {
       letter.origin = { x: rect.left - bounds.left + rect.width / 2, y: rect.top - bounds.top + rect.height / 2 };
       letter.width = rect.width;
       letter.height = rect.height;
-      letter.collider.setShape(new RAPIER.Cuboid(Math.max(rect.width / 2 - 0.5, 0.5), Math.max(rect.height / 2 - 2, 0.5), 1));
+      letter.collider.setShape(new RAPIER.Cuboid(Math.max(rect.width / 2 - 0.5, 0.5), Math.max(rect.height / 2 - 2, 0.5)));
       const state = states[index] ?? { x: 0, y: 0, angle: 0 };
-      letter.body.setTranslation({ x: letter.origin.x + state.x, y: letter.origin.y + state.y, z: 0 }, false);
+      letter.body.setTranslation({ x: letter.origin.x + state.x, y: letter.origin.y + state.y }, false);
       letter.element.style.width = `${rect.width}px`;
       letter.element.style.height = `${rect.height}px`;
       const source = (letter.range.startContainer as Text).parentElement!;
@@ -93,8 +103,8 @@ export class PageLetters {
 
   public snapshot(): LetterState[] {
     return this.letters.map(({ body, origin }) => {
-      const position = body.translation(), rotation = body.rotation();
-      return { x: position.x - origin.x, y: position.y - origin.y, angle: 2 * Math.atan2(rotation.z, rotation.w) };
+      const position = body.translation();
+      return { x: position.x - origin.x, y: position.y - origin.y, angle: body.rotation() };
     });
   }
 
@@ -121,15 +131,14 @@ export class PageLetters {
       if (!rect.width || !rect.height) continue;
       const bounds = this.shell.getBoundingClientRect();
       const origin = { x: rect.left - bounds.left + rect.width / 2, y: rect.top - bounds.top + rect.height / 2 };
-      const body = this.world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(origin.x, origin.y, 0)
-        .enabledTranslations(true, true, false).enabledRotations(false, false, true)
+      const body = this.world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(origin.x, origin.y)
         .setLinearDamping(10).setAngularDamping(8).setCcdEnabled(true));
       const collider = this.world.createCollider(RAPIER.ColliderDesc.cuboid(Math.max(rect.width / 2 - 0.5, 0.5),
-        Math.max(rect.height / 2 - 2, 0.5), 1).setMass(1).setRestitution(0.05).setFriction(0.4), body);
+        Math.max(rect.height / 2 - 2, 0.5)).setMass(1).setRestitution(0.05).setFriction(0.4), body);
       const element = document.createElement('span');
       element.className = 'page-letter';
       element.textContent = segment;
-      Object.assign(element.style, { font: style.font, lineHeight: 'normal', color: style.color,
+      Object.assign(element.style, { font: style.font, lineHeight: 'normal', color: '#fff',
         letterSpacing: style.letterSpacing, textTransform: style.textTransform,
         textDecoration: style.textDecoration, textUnderlineOffset: style.textUnderlineOffset,
         width: `${rect.width}px`, height: `${rect.height}px` });
@@ -154,8 +163,7 @@ export class PageLetters {
   private paint(): void {
     const scroll = window.scrollY;
     for (const letter of this.letters) {
-      const position = letter.body.translation(), rotation = letter.body.rotation();
-      const angle = 2 * Math.atan2(rotation.z, rotation.w);
+      const position = letter.body.translation(), angle = letter.body.rotation();
       const fixed = letter.element.classList.contains('page-header-letter');
       const x = position.x - letter.width / 2;
       const y = position.y - letter.height / 2 - (fixed ? scroll : 0);

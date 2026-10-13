@@ -13,7 +13,7 @@ The homepage mode that lists the corridor doors from top to bottom using the sam
 _Avoid_: normal page, fallback page
 
 **Entrance ball**:
-The single MONO TOWER player ball on a writing page or beside the List view entrance titles. It starts beside the page title and follows a newly hovered or focused entrance with an ease-out movement. Keyboard movement always uses W toward the top of the page, independently of Game view controls. Touch visitors move it by tapping the page. It pushes individual letters and responds to jumping and rotation. View rotation preserves its current screen center. A Cursor block pushes it and preserves its displaced position until the selected entrance changes. The Cursor spike breaks its outline into randomly sized arcs with different trajectories each time; when the spike moves away the ball respawns beside the nearest title. Its colors invert with the row and it remains visible in front of the page header. Scrolling preserves its position; browser refresh, back and forward restore the initial page arrangement.
+The single MONO TOWER player ball on a writing page or beside the List view entrance titles. It starts beside the page title and follows a newly hovered or focused entrance with an ease-out movement. Keyboard movement always uses W toward the top of the page, independently of Game view controls. Touch visitors drag from the ball and release at a destination to move it there. Reading, selecting text and ordinary page taps preserve its position. It pushes individual letters and responds to jumping and rotation. View rotation preserves its current screen center. A Cursor block pushes it and preserves its displaced position until the selected entrance changes. The Cursor spike breaks its outline into randomly sized arcs with different trajectories each time; when the spike moves away the ball respawns beside the nearest title. Its colors invert with the row and it remains visible in front of the page header. Scrolling preserves its position; a new page visit, browser refresh, back and forward restore the initial page arrangement.
 
 **Page letter**:
 An individual visible letter, Chinese character or other grapheme in the page text. It can move in any direction and rotate freely when pushed by the Entrance ball or another Page letter. Scrolling and resizing preserve displaced letters. Browser refresh, back and forward restore the initial page arrangement.
@@ -22,7 +22,7 @@ An individual visible letter, Chinese character or other grapheme in the page te
 The ball position, selected entrance and individual letter positions belonging to one page address. Scrolling, resizing and changing the homepage mode preserve it. Browser refresh, back and forward restore the page's initial arrangement.
 
 **View toggle hint**:
-The animated hint underneath the homepage mode button that explains how to enter the List view. It remains available until that visitor first uses the button.
+The animated hint underneath the homepage mode button that explains how to enter the List view. Its upward tip points to that button. It remains available until that visitor first uses the button.
 
 **Game cursor**:
 The original standard block with one spike on top, replacing the mouse cursor in the List view. The spike tip marks the pointer position. Its view rotates around its own center with the keyboard, and its projected block and spike geometry define the Entrance ball collision areas. Each pixel inverts over highlighted entrance regions while preserving its appearance over black regions. It is hidden for touch input and removed when leaving the List view.
@@ -49,7 +49,7 @@ A temporary, uniformly styled ball representing one visitor currently in the Gam
 _Avoid_: user avatar, profile ball
 
 **Speech bubble**:
-A temporary message or message editor directly above its visitor ball. Only nearby visitors receive the message. The editor opens and closes with an animated change in size and visibility.
+A temporary message or message editor directly above its visitor ball. Only nearby visitors receive the message. New messages appear below earlier messages, which move upward smoothly. Each message expires independently. The editor opens and closes with an animated change in size and visibility; pressing outside it cancels the draft.
 
 **Speech range**:
 The maximum distance between visitor balls at which one visitor can receive and read another visitor's message.

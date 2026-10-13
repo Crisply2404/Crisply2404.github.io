@@ -275,7 +275,8 @@ a {
 
 .tutorial-speech-tap {
   position: absolute;
-  transform: rotate(180deg);
+  transform-origin: 7px 0;
+  transform: rotate(-45deg);
   pointer-events: none;
 }
 
@@ -337,7 +338,7 @@ a {
 .view-toggle-hint {
   position: absolute;
   right: 22px;
-  top: 64px;
+  top: 68px;
   max-width: calc(100vw - 44px);
   padding: 8px 10px;
   border: 1px solid white;
@@ -355,6 +356,19 @@ a {
 .view-toggle-hint.is-visible {
   opacity: 1;
   transform: translateY(0) scale(1);
+}
+
+.view-toggle-hint::before {
+  content: '';
+  position: absolute;
+  right: 13px;
+  top: -6px;
+  width: 10px;
+  height: 10px;
+  border-top: 1px solid white;
+  border-left: 1px solid white;
+  background: black;
+  transform: rotate(45deg);
 }
 
 .view-toggle:hover,
@@ -414,6 +428,18 @@ a {
 
 .speech-composer {
   pointer-events: auto;
+}
+
+.speech-messages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.speech-messages .speech-panel {
+  width: max-content;
+  max-width: 100%;
 }
 
 .speech-input {
@@ -549,6 +575,13 @@ a {
 .reading-column .entrance-ball {
   left: 0;
   z-index: 40;
+}
+
+.entrance-ball.touch-ball {
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .page-text-source {
@@ -738,7 +771,7 @@ a {
 
   .view-toggle-hint {
     right: 16px;
-    top: 56px;
+    top: 64px;
   }
 
   .list-root,

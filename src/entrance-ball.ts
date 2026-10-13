@@ -56,6 +56,7 @@ export class EntranceBall {
     this.selectedRow = this.rows[Math.min(saved?.selected ?? 0, this.rows.length - 1)];
     this.shell = root.closest<HTMLElement>('.site-shell')!;
     this.canvas.className = 'entrance-ball';
+    this.canvas.classList.toggle('touch-ball', navigator.maxTouchPoints > 0);
     this.canvas.setAttribute('aria-hidden', 'true');
     root.append(this.canvas);
     document.body.classList.add('list-cursor-mode');
@@ -66,19 +67,23 @@ export class EntranceBall {
       const select = (): void => {
         this.selectRow(row);
       };
-      row.addEventListener('pointerenter', select, { signal: this.listeners.signal });
+      row.addEventListener('pointerenter', (event) => {
+        if (event.pointerType !== 'touch') select();
+      }, { signal: this.listeners.signal });
       row.addEventListener('focus', select, { signal: this.listeners.signal });
     }
     window.addEventListener('keydown', this.keyDown, { signal: this.listeners.signal });
     window.addEventListener('keyup', this.keyUp, { signal: this.listeners.signal });
     window.addEventListener('blur', this.clearInput, { signal: this.listeners.signal });
+    window.addEventListener('blur', this.cancelTouchDrag, { signal: this.listeners.signal });
     window.addEventListener('resize', this.resize, { signal: this.listeners.signal });
     window.addEventListener('pointermove', this.pointerMove, { signal: this.listeners.signal });
     document.addEventListener('pointerleave', this.pointerLeave, { signal: this.listeners.signal });
     document.addEventListener('visibilitychange', this.clearInput, { signal: this.listeners.signal });
     this.shell.addEventListener('pointerdown', this.pointerDown, { signal: this.listeners.signal });
     this.shell.addEventListener('pointerup', this.pointerUp, { signal: this.listeners.signal });
-    this.shell.addEventListener('pointercancel', () => { this.tapStart = undefined; }, { signal: this.listeners.signal });
+    this.shell.addEventListener('pointercancel', this.cancelTouchDrag, { signal: this.listeners.signal });
+    this.canvas.addEventListener('lostpointercapture', this.cancelTouchDrag, { signal: this.listeners.signal });
     this.resize();
     this.letters = new PageLetters(this.shell, saved?.letters, (element) => {
       if (this.rows.includes(element)) this.selectRow(element);
@@ -91,6 +96,7 @@ export class EntranceBall {
   public destroy(): void {
     savePagePlayState({ selected: this.rows.indexOf(this.selectedRow),
       ball: { x: this.screenOffset.x + this.pushed.x, y: this.screenOffset.y + this.pushed.y }, letters: this.letters.snapshot() });
+    this.cancelTouchDrag();
     this.listeners.abort();
     cancelAnimationFrame(this.animationFrame);
     this.resizeObserver.disconnect();
@@ -256,7 +262,6 @@ export class EntranceBall {
   private readonly pointerMove = (event: PointerEvent): void => {
     if (event.pointerType === 'touch') {
       this.cursor.hide();
-      if (this.tapStart && Math.hypot(event.clientX - this.tapStart.x, event.clientY - this.tapStart.y) > 10) this.tapStart = undefined;
       return;
     }
     const target = new THREE.Vector2(event.clientX, event.clientY);
@@ -277,19 +282,33 @@ export class EntranceBall {
 
   private readonly pointerDown = (event: PointerEvent): void => {
     if (event.pointerType !== 'touch') return;
-    if (this.tapStart) { this.tapStart = undefined; return; }
+    if (this.tapStart) { this.cancelTouchDrag(); return; }
+    if (event.target !== this.canvas || this.brokenAt !== undefined || !window.getSelection()?.isCollapsed) return;
+    if (this.ballCenter().distanceTo(new THREE.Vector2(event.clientX, event.clientY)) > 16) return;
     this.tapStart = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    this.canvas.setPointerCapture(event.pointerId);
+    this.tapTarget = undefined;
+    this.clearInput();
+    event.preventDefault();
   };
 
   private readonly pointerUp = (event: PointerEvent): void => {
     const start = this.tapStart;
     this.tapStart = undefined;
-    if (!start || start.id !== event.pointerId || Math.hypot(event.clientX - start.x, event.clientY - start.y) > 10) return;
-    if ((event.target as HTMLElement).closest('a, button, .page-link-letter')) return;
+    if (!start || start.id !== event.pointerId) return;
+    if (this.canvas.hasPointerCapture(event.pointerId)) this.canvas.releasePointerCapture(event.pointerId);
+    event.preventDefault();
+    if (Math.hypot(event.clientX - start.x, event.clientY - start.y) <= 10) return;
     const bounds = this.shell.getBoundingClientRect();
     this.tapTarget = new THREE.Vector2(event.clientX - bounds.left, event.clientY - bounds.top);
     this.clearInput();
     this.canvas.style.transition = 'none';
+  };
+
+  private readonly cancelTouchDrag = (): void => {
+    const start = this.tapStart;
+    this.tapStart = undefined;
+    if (start && this.canvas.hasPointerCapture(start.id)) this.canvas.releasePointerCapture(start.id);
   };
 
   private readonly pointerLeave = (): void => {

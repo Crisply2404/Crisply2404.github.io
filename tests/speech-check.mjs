@@ -41,6 +41,15 @@ await input.fill('cancelled');
 await page.keyboard.press('Escape');
 await page.waitForFunction(() => document.querySelector('.speech-composer').hidden);
 assert.ok(!sent.some((message) => message.type === 'speech' && message.text === 'cancelled'));
+await page.keyboard.press('Enter');
+await input.waitFor();
+await input.fill('outside cancelled');
+await page.waitForTimeout(240);
+await page.evaluate(() => { window.speechTransitions = []; });
+await page.mouse.click(100, 500);
+await page.waitForFunction(() => document.querySelector('.speech-composer').hidden);
+assert.ok(!sent.some((message) => message.type === 'speech' && message.text === 'outside cancelled'));
+assert.ok(await page.evaluate(() => window.speechTransitions.some((event) => event.property === 'transform' && event.duration >= 0.19)));
 await page.waitForTimeout(8500);
 assert.equal(await page.locator('.speech-anchor:not(.speech-composer)').count(), 0);
 await page.close();
@@ -68,6 +77,14 @@ await mobile.waitForFunction(() => ['opacity', 'transform'].every((property) => 
 await mobile.waitForFunction(() => document.querySelector('.speech-composer').hidden);
 assert.equal(await mobile.locator('.speech-anchor:not(.speech-composer) .speech-panel').textContent(), 'mobile hello');
 assert.equal(await mobile.evaluate(() => window.game.path.length), 0, 'Tapping the local ball must not trigger navigation');
+await mobile.touchscreen.tap(point.x, point.y);
+await mobileInput.waitFor();
+await mobileInput.fill('mobile outside cancelled');
+await mobile.waitForTimeout(240);
+await mobile.touchscreen.tap(50, 600);
+await mobile.waitForFunction(() => document.querySelector('.speech-composer').hidden);
+assert.equal(await mobile.evaluate(() => window.game.path.length), 0, 'Closing speech outside must not navigate');
+assert.equal(await mobile.locator('.speech-anchor:not(.speech-composer) .speech-panel').textContent(), 'mobile hello');
 await mobile.close();
 
 const sender = await browser.newPage({ viewport: { width: 1280, height: 800 } });
@@ -123,6 +140,59 @@ assert.equal(await remoteBubble.locator('.speech-panel').textContent(), 'nearby 
 await sender.close();
 await remoteBubble.waitFor({ state: 'detached' });
 await recipient.close();
+
+const conversation = await browser.newPage({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
+conversation.on('pageerror', (error) => errors.push(error.message));
+await conversation.goto(url);
+await conversation.waitForSelector('.scene-canvas');
+const say = async (text) => {
+  await conversation.keyboard.press('Enter');
+  const editor = conversation.getByRole('textbox', { name: 'Message' });
+  await editor.waitFor();
+  await conversation.waitForTimeout(240);
+  await editor.fill(text);
+  await conversation.keyboard.press('Enter');
+  await conversation.waitForFunction(() => document.querySelector('.speech-composer').hidden);
+};
+await say('first retained message');
+const firstMessage = conversation.locator('.speech-messages .speech-panel').filter({ hasText: 'first retained message' });
+const firstPosition = await firstMessage.boundingBox();
+await conversation.evaluate(() => {
+  window.stackTransitions = [];
+  document.addEventListener('transitionend', (event) => {
+    if (event.target.matches('.speech-messages .speech-panel')) window.stackTransitions.push(event.propertyName);
+  });
+});
+await conversation.waitForTimeout(700);
+await conversation.evaluate(() => {
+  window.messagePositions = [];
+  const sample = () => {
+    const first = document.querySelector('.speech-messages .speech-panel');
+    window.messagePositions.push(first.getBoundingClientRect().y);
+    if (window.messagePositions.length < 40) requestAnimationFrame(sample);
+  };
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && event.target.matches('.speech-input')) {
+      window.messagePositions = [];
+      sample();
+    }
+  }, { capture: true });
+});
+await say('second retained message');
+const secondMessage = conversation.locator('.speech-messages .speech-panel').filter({ hasText: 'second retained message' });
+assert.equal(await conversation.locator('.speech-messages .speech-panel').count(), 2);
+const shiftedPosition = await firstMessage.boundingBox();
+const secondPosition = await secondMessage.boundingBox();
+assert.ok(shiftedPosition.y < firstPosition.y - 8 && shiftedPosition.y < secondPosition.y,
+  'Earlier speech must shift upward above the latest message');
+assert.ok(await conversation.evaluate(() => window.stackTransitions.includes('transform')), 'Older messages must move with a transition');
+const sampled = await conversation.evaluate(() => window.messagePositions);
+assert.ok(sampled.every((position, index) => !index || position - sampled[index - 1] < 4),
+  `Sending must not make an earlier message jump downward: ${sampled.join(', ')}`);
+await firstMessage.waitFor({ state: 'detached', timeout: 8500 });
+assert.ok(await secondMessage.isVisible(), 'Each message must keep its independent display time');
+await secondMessage.waitFor({ state: 'detached', timeout: 3000 });
+await conversation.close();
 assert.deepEqual(errors, []);
 await browser.close();
-console.log('真实浏览器对话检查通过：Enter、手机点击球体、补间、文本、取消、过期、附近接收、距离显示、球体跟随与离开清理。');
+console.log('真实浏览器对话检查通过：Enter、手机球体、补间、点击外部关闭、连续消息独立计时、附近接收与离开清理。');

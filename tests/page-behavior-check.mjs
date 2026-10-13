@@ -19,6 +19,14 @@ await page.waitForFunction(() => window.hintTransitions.some((event) => event.pr
 const button = await page.getByRole('button', { name: 'Switch to list view' }).boundingBox();
 const hint = await page.locator('.view-toggle-hint').boundingBox();
 assert.ok(hint.y > button.y + button.height);
+const pointer = await page.locator('.view-toggle-hint').evaluate((element) => {
+  const style = getComputedStyle(element, '::before');
+  const bounds = element.getBoundingClientRect();
+  return { x: bounds.right - 1 - parseFloat(style.right) - parseFloat(style.width) / 2,
+    top: parseFloat(style.top), transform: style.transform };
+});
+assert.ok(Math.abs(pointer.x - (button.x + button.width / 2)) < 1, 'The hint pointer must point at the button center');
+assert.ok(pointer.top < 0 && pointer.transform !== 'none');
 assert.equal(await page.locator('.view-toggle-hint').textContent(), 'Switch to webpage view');
 await page.reload();
 await page.locator('.view-toggle-hint').waitFor();

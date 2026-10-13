@@ -15,6 +15,7 @@
     "test:list": "node tests/list-check.mjs",
     "test:list-play": "node tests/list-play-check.mjs",
     "test:page-play": "node tests/page-play-check.mjs",
+    "test:mobile-page": "node tests/mobile-page-check.mjs",
     "test:page-behavior": "node tests/page-behavior-check.mjs",
     "test:letters": "node tests/letter-collision-check.mjs",
     "test:presence": "node tests/presence-check.mjs",

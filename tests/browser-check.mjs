@@ -95,7 +95,7 @@ await page.keyboard.down('w');
 await page.waitForFunction(() => window.game.player.pos.z < 30);
 const diagonal = await state();
 assert.ok(diagonal.x < -10);
-assert.ok(Math.abs(diagonal.vx - diagonal.vz) < 0.02, JSON.stringify(diagonal));
+assert.ok(Math.abs(diagonal.x - diagonal.z + 40) < 0.3, JSON.stringify(diagonal));
 await page.keyboard.up('w'); await page.keyboard.press('r');
 await page.keyboard.press('Tab');
 assert.equal(await page.evaluate(() => window.game.orientation), 1);

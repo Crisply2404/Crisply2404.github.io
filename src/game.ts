@@ -320,13 +320,15 @@ export class GameScene {
       return { x: (point.x + 1) * width / 2, y: (1 - point.y) * height / 2 - radius - 10 };
     };
     const positions = new Map<string, { x: number; y: number }>();
-    if (!this.speech.editing) positions.set(this.presence.identity, project(this.player.pos));
+    const localMessage = project(this.player.pos);
+    if (this.speech.editing) localMessage.y -= this.speech.editorHeight + 8;
+    positions.set(this.presence.identity, localMessage);
     for (const [id, remote] of this.remoteAvatars) {
       if (this.player.pos.distanceTo(new THREE.Vector3(remote.target.x, remote.target.y, remote.target.z)) <= speechRange) {
         positions.set(id, project(remote.object.position));
       }
     }
-    this.speech.update(project(this.player.pos), positions);
+    this.speech.update(project(this.player.pos), positions, this.presence.identity);
   }
 
   private receiveAvatars(avatars: Map<string, AvatarState>): void {

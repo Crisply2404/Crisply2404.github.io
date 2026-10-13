@@ -1,17 +1,21 @@
 import { speechCharacterLimit, type SpeechMessage } from './presence-rules';
 
-interface SpeechPanel { anchor: HTMLDivElement; panel: HTMLDivElement; expiresAt: number }
+interface SpeechPanel { panel: HTMLDivElement; expiresAt: number }
+interface SpeechStack { anchor: HTMLDivElement; messages: SpeechPanel[] }
 
 export class SpeechBubbles {
   private readonly composer = document.createElement('div');
   private readonly editor = document.createElement('div');
   private readonly input = document.createElement('input');
   private readonly listeners = new AbortController();
-  private readonly bubbles = new Map<string, SpeechPanel>();
+  private readonly bubbles = new Map<string, SpeechStack>();
   private closeTimer: number | undefined;
   private generation = 0;
   private composing = false;
+  private previousEditing = false;
   public editing = false;
+
+  public get editorHeight(): number { return this.editing ? this.composer.offsetHeight : 0; }
 
   public constructor(private readonly root: HTMLElement, private readonly send: (text: string) => void,
     private readonly onEditing: (editing: boolean) => void) {
@@ -44,6 +48,12 @@ export class SpeechBubbles {
       }
     }, { signal: this.listeners.signal });
     this.input.addEventListener('keyup', (event) => event.stopPropagation(), { signal: this.listeners.signal });
+    document.addEventListener('pointerdown', (event) => {
+      if (!this.editing || this.editor.contains(event.target as Node)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      this.close();
+    }, { capture: true, signal: this.listeners.signal });
   }
 
   public open(): void {
@@ -69,35 +79,45 @@ export class SpeechBubbles {
     this.input.blur();
     this.composing = false;
     this.onEditing(false);
-    this.closeTimer = window.setTimeout(() => { this.composer.hidden = true; }, 320);
+    this.closeTimer = window.setTimeout(() => { this.composer.hidden = true; this.input.value = ''; }, 320);
   }
 
   public show(message: SpeechMessage): void {
-    const existing = this.bubbles.get(message.id);
-    if (existing) {
-      existing.panel.textContent = message.text;
-      existing.expiresAt = message.expiresAt;
-      existing.panel.classList.add('is-visible');
-      return;
+    let stack = this.bubbles.get(message.id);
+    if (!stack) {
+      const anchor = document.createElement('div');
+      anchor.className = 'speech-anchor speech-messages';
+      anchor.dataset.visitor = message.id;
+      this.root.append(anchor);
+      stack = { anchor, messages: [] };
+      this.bubbles.set(message.id, stack);
     }
-    const anchor = document.createElement('div');
-    anchor.className = 'speech-anchor';
-    anchor.dataset.visitor = message.id;
+    const before = this.positions(stack);
     const panel = document.createElement('div');
     panel.className = 'speech-panel';
     panel.textContent = message.text;
-    anchor.append(panel);
-    this.root.append(anchor);
-    this.bubbles.set(message.id, { anchor, panel, expiresAt: message.expiresAt });
+    stack.anchor.append(panel);
+    stack.messages.push({ panel, expiresAt: message.expiresAt });
+    this.animatePositions(stack, before);
     panel.getBoundingClientRect();
     panel.classList.add('is-visible');
   }
 
-  public update(local: { x: number; y: number }, positions: Map<string, { x: number; y: number }>): void {
+  public update(local: { x: number; y: number }, positions: Map<string, { x: number; y: number }>, localId: string): void {
     this.place(this.composer, local);
+    const editingChanged = this.previousEditing !== this.editing;
+    this.previousEditing = this.editing;
     const now = Date.now();
     for (const [id, bubble] of this.bubbles) {
-      if (now >= bubble.expiresAt + 220) { bubble.anchor.remove(); this.bubbles.delete(id); continue; }
+      const expired = bubble.messages.filter((message) => now >= message.expiresAt + 220);
+      if (expired.length) {
+        const before = this.positions(bubble);
+        for (const message of expired) message.panel.remove();
+        bubble.messages = bubble.messages.filter((message) => !expired.includes(message));
+        this.animatePositions(bubble, before);
+      }
+      if (!bubble.messages.length) { bubble.anchor.remove(); this.bubbles.delete(id); continue; }
+      for (const message of bubble.messages) if (now >= message.expiresAt) message.panel.classList.remove('is-visible');
       const position = positions.get(id);
       if (!position || position.x < 0 || position.x > this.root.clientWidth
         || position.y < 0 || position.y > this.root.clientHeight) {
@@ -105,10 +125,13 @@ export class SpeechBubbles {
         continue;
       }
       bubble.anchor.hidden = false;
+      const previousBottom = bubble.anchor.getBoundingClientRect().bottom;
       bubble.anchor.style.left = `${position.x}px`;
       bubble.anchor.style.top = `${position.y}px`;
-      if (now >= bubble.expiresAt) {
-        bubble.panel.classList.remove('is-visible');
+      if (editingChanged && id === localId) {
+        for (const animation of bubble.anchor.getAnimations()) animation.cancel();
+        bubble.anchor.animate([{ translate: `0 ${previousBottom - position.y}px` }, { translate: '0 0' }],
+          { duration: 200, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' });
       }
     }
   }
@@ -125,6 +148,24 @@ export class SpeechBubbles {
     this.composer.remove();
     for (const bubble of this.bubbles.values()) bubble.anchor.remove();
     this.bubbles.clear();
+  }
+
+  private positions(stack: SpeechStack): Map<HTMLElement, number> {
+    return new Map(stack.messages.map(({ panel }) => [panel, panel.getBoundingClientRect().top]));
+  }
+
+  private animatePositions(stack: SpeechStack, previous: Map<HTMLElement, number>): void {
+    for (const { panel } of stack.messages) {
+      const top = previous.get(panel);
+      if (top === undefined) continue;
+      const displacement = top - panel.getBoundingClientRect().top;
+      if (Math.abs(displacement) < 0.1) continue;
+      panel.style.transition = 'none';
+      panel.style.transform = `translateY(${displacement}px)`;
+      panel.getBoundingClientRect();
+      panel.style.transition = '';
+      panel.style.transform = '';
+    }
   }
 
   private place(anchor: HTMLElement, position: { x: number; y: number }): void {

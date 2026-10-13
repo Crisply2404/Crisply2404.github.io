@@ -112,13 +112,20 @@ await mobile.goto(url);
 await mobile.getByRole('button', { name: 'Switch to list view' }).click();
 await mobile.waitForSelector('.entrance-ball');
 await mobile.waitForTimeout(500);
+const mobileStart = await mobile.locator('.entrance-ball').boundingBox();
 await mobile.touchscreen.tap(300, 460);
+await mobile.waitForTimeout(300);
+assert.deepEqual(await mobile.locator('.entrance-ball').boundingBox(), mobileStart, 'Ordinary page taps must preserve the ball position');
+const cdp = await mobile.context().newCDPSession(mobile);
+await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ id: 0, x: mobileStart.x + 16, y: mobileStart.y + 16 }] });
+await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ id: 0, x: 300, y: 460 }] });
+await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 await mobile.waitForFunction(() => {
   const bounds = document.querySelector('.entrance-ball').getBoundingClientRect();
   return Math.hypot(bounds.x + 16 - 300, bounds.y + 16 - 460) < 2;
 });
 const target = await mobile.locator('.entrance-ball').boundingBox();
-assert.ok(Math.hypot(target.x + 16 - 300, target.y + 16 - 460) < 2, 'A mobile tap must move the ball to its destination');
+assert.ok(Math.hypot(target.x + 16 - 300, target.y + 16 - 460) < 2, 'Dragging from the ball must move it to the release position');
 assert.equal(await mobile.locator('.game-cursor').isVisible(), false);
 await mobile.close();
 
@@ -145,4 +152,4 @@ await article.evaluate(() => window.articlePlay.destroy());
 await article.close();
 assert.deepEqual(errors, []);
 await browser.close();
-console.log('逐字碰撞、自由旋转、滚动保留、后退与刷新恢复、网页独立 W 朝上与手机点按检查通过。');
+console.log('逐字碰撞、自由旋转、滚动保留、后退与刷新恢复、网页独立 W 朝上与手机拖动检查通过。');

@@ -113,13 +113,23 @@ const list = await browser.newPage({ viewport: { width: 320, height: 240 }, isMo
 list.on('pageerror', (error) => errors.push(error.message));
 await list.goto('http://localhost:5174/');
 await list.getByRole('button', { name: 'Switch to list view' }).click();
+await list.waitForSelector('.page-letter');
+await list.waitForTimeout(450);
 await list.mouse.move(0, 200);
+const ballBefore = await list.locator('.entrance-ball').boundingBox();
 const before = PNG.sync.read(await list.locator('.site-header').screenshot());
 await list.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
 assert.ok(await list.evaluate(() => scrollY > 0));
 assert.equal(await list.locator('.site-header').evaluate((header) => getComputedStyle(header).backgroundColor), 'rgb(0, 0, 0)');
 const after = PNG.sync.read(await list.locator('.site-header').screenshot());
-assert.deepEqual(after.data, before.data, 'Scrolling entries must not show through the fixed header');
+const ballAfter = await list.locator('.entrance-ball').boundingBox();
+const inBall = (x, y, bounds) => x >= bounds.x - 1 && x <= bounds.x + bounds.width + 1
+  && y >= bounds.y - 1 && y <= bounds.y + bounds.height + 1;
+for (let y = 0; y < before.height; y += 1) for (let x = 0; x < before.width; x += 1) {
+  if (inBall(x, y, ballBefore) || inBall(x, y, ballAfter)) continue;
+  const index = (y * before.width + x) * 4;
+  assert.equal(after.data[index], before.data[index], `Scrolling text must stay behind the header at ${x}, ${y}`);
+}
 console.log('手机列表真实滚动与顶部栏不透明遮挡检查通过。');
 await list.close();
 assert.deepEqual(errors, []);

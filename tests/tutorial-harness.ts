@@ -23,9 +23,15 @@ async function runTutorialChecks(): Promise<Record<string, unknown>> {
   const taps = new Set<boolean>();
   const modes = new Set<number>();
   const moveKeys = new Set<string>();
+  const movementStates: string[] = [];
   let checks = 0;
   for (let tick = 0; tick < 780; tick += 1) {
     tutorial.update(1 / 60);
+    if (!mobile) {
+      const active = [...root.querySelectorAll<HTMLElement>('.tutorial-wasd .is-active')].map((key) => key.dataset.key!).join('');
+      check(active.length === 1, 'WASD must keep one held key visible throughout each movement segment');
+      movementStates.push(active);
+    }
     if (tick % 6 !== 0) continue;
     modes.add([...root.querySelectorAll('.tutorial-modes i')].findIndex((dot) => dot.classList.contains('is-active')));
     fingerFrames.add([...root.querySelectorAll<HTMLElement>('.tutorial-gesture .tutorial-finger')]
@@ -34,7 +40,9 @@ async function runTutorialChecks(): Promise<Record<string, unknown>> {
     if (mobile && root.querySelector('.tutorial-speech-tap')?.classList.contains('is-active')) {
       const finger = root.querySelector<HTMLElement>('.tutorial-speech-tap')!;
       const tipX = Math.round((parseFloat(finger.style.left) + 7) * devicePixelRatio);
-      const tipY = Math.round((parseFloat(finger.style.top) + 30) * devicePixelRatio);
+      const tipY = Math.round(parseFloat(finger.style.top) * devicePixelRatio);
+      const transform = new DOMMatrix(getComputedStyle(finger).transform);
+      check(transform.b < -0.6 && transform.a > 0.6, 'The speech finger must approach diagonally from the lower right');
       const data = new Uint8Array(canvas.width * canvas.height * 4);
       gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, data);
       let outline = 0;
@@ -81,6 +89,13 @@ async function runTutorialChecks(): Promise<Record<string, unknown>> {
   } else {
     check(modes.size === 3 && !modes.has(-1), 'Tutorial must cycle through three control modes'); checks += 1;
     check(moveKeys.size === 4, 'Tutorial must animate all WASD keys'); checks += 1;
+    const heldSegments: number[] = [];
+    movementStates.forEach((key, index) => {
+      if (!index || key !== movementStates[index - 1]) heldSegments.push(1);
+      else heldSegments[heldSegments.length - 1] += 1;
+    });
+    check(heldSegments.slice(0, -1).every((length) => length >= 45 && length <= 49),
+      `WASD must not blink during held movement: ${heldSegments.join(', ')}`); checks += 1;
   }
   check(frames.every((samples, index) => samples.size >= (!mobile && index === 4 ? 3 : 4)),
     `Each control requires an animated game diagram: ${frames.map((samples) => samples.size).join(', ')}`); checks += 1;

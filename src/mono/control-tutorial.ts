@@ -199,8 +199,9 @@ export class ControlTutorial {
       const contact = speechPhase >= 18 && speechPhase < 30;
       const approach = THREE.MathUtils.smoothstep(speechPhase, 6, 18);
       const retreat = THREE.MathUtils.smoothstep(speechPhase, 30, 48);
-      this.speechFinger.style.left = `${(point.x + 1) * this.canvas.clientWidth / 2 - 7}px`;
-      this.speechFinger.style.top = `${(1 - point.y) * this.canvas.clientHeight / 2 - 20 * scale - 30 - 12 * (1 - approach + retreat)}px`;
+      const distance = 20 * scale + 12 * (1 - approach + retreat);
+      this.speechFinger.style.left = `${(point.x + 1) * this.canvas.clientWidth / 2 + distance / Math.SQRT2 - 7}px`;
+      this.speechFinger.style.top = `${(1 - point.y) * this.canvas.clientHeight / 2 + distance / Math.SQRT2}px`;
       this.speechFinger.style.opacity = String(speechPhase < 54 ? 1 : 0);
       this.speechFinger.classList.toggle('is-active', contact);
     }
@@ -238,7 +239,7 @@ export class ControlTutorial {
       const [worldX, worldZ] = movementDirection(x * 24, y * 24, Math.PI / 4, orientation);
       const movementForce = navigationForce(this.movement.player.pos, this.movement.player.vel, new THREE.Vector3(worldX, 40.02, worldZ));
       this.stepBall(this.movement, movementForce);
-      for (const key of moveKeys) this.setKey(key, key === moveKeys[movementIndex] && movementForce.lengthSq() > 0.01);
+      for (const key of moveKeys) this.setKey(key, key === moveKeys[movementIndex]);
     }
     const jumping = this.tick % 120;
     if (jumping === 12) this.jumping.player.jump(true, false);

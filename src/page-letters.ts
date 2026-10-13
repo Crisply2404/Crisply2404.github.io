@@ -95,7 +95,7 @@ export class PageLetters {
       const source = (letter.range.startContainer as Text).parentElement!;
       const style = getComputedStyle(source);
       letter.element.style.font = style.font;
-      letter.element.style.lineHeight = 'normal';
+      letter.element.style.lineHeight = `${rect.height}px`;
       letter.element.style.letterSpacing = style.letterSpacing;
     });
     this.paint();
@@ -138,7 +138,7 @@ export class PageLetters {
       const element = document.createElement('span');
       element.className = 'page-letter';
       element.textContent = segment;
-      Object.assign(element.style, { font: style.font, lineHeight: 'normal', color: '#fff',
+      Object.assign(element.style, { font: style.font, lineHeight: `${rect.height}px`, color: '#fff',
         letterSpacing: style.letterSpacing, textTransform: style.textTransform,
         textDecoration: style.textDecoration, textUnderlineOffset: style.textUnderlineOffset,
         width: `${rect.width}px`, height: `${rect.height}px` });

@@ -125,7 +125,7 @@ await mobile.waitForFunction(() => {
   return Math.hypot(bounds.x + 16 - 300, bounds.y + 16 - 460) < 2;
 });
 const target = await mobile.locator('.entrance-ball').boundingBox();
-assert.ok(Math.hypot(target.x + 16 - 300, target.y + 16 - 460) < 2, 'Dragging from the ball must move it to the release position');
+assert.ok(Math.hypot(target.x + 16 - 300, target.y + 16 - 460) < 2, 'Dragging from the ball must follow the finger and stop when released');
 assert.equal(await mobile.locator('.game-cursor').isVisible(), false);
 await mobile.close();
 

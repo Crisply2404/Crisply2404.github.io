@@ -24,6 +24,10 @@ for (const cached of [true, false]) {
     const point = await center();
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ id: 0, ...point }] });
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ id: 0, ...target }] });
+    await page.waitForTimeout(80);
+    const following = await center();
+    assert.ok(Math.hypot(following.x - target.x, following.y - target.y) < 0.5,
+      'The ball must follow the finger before it releases');
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await page.waitForFunction(({ x, y }) => {
       const rect = document.querySelector('.entrance-ball').getBoundingClientRect();
@@ -43,6 +47,22 @@ for (const cached of [true, false]) {
   await page.touchscreen.tap(300, 360);
   await unchanged(spawn, 'Dismissing a text selection must preserve the ball');
   await page.evaluate(() => getSelection().removeAllRanges());
+  const grabbed = { x: spawn.x + 6, y: spawn.y + 4 };
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ id: 0, ...grabbed }] });
+  await unchanged(spawn, 'Starting away from the center must preserve the grab position');
+  for (const target of [{ x: 85, y: 250 }, { x: 160, y: 310 }, { x: 240, y: 240 }, { x: 120, y: 280 }]) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ id: 0, ...target }] });
+    await unchanged({ x: target.x - 6, y: target.y - 4 }, 'Every turn in the drag must move the ball immediately');
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ id: 0, x: 450, y: 280 }] });
+  await page.waitForTimeout(100);
+  assert.ok((await center()).x <= 374, 'The complete ball must stay inside the horizontal viewport');
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ id: 0, x: 120, y: 280 }] });
+  await unchanged({ x: 114, y: 276 }, 'Returning from the screen edge must immediately follow the finger');
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await unchanged({ x: 114, y: 276 }, 'Releasing the ball must stop it at its current position');
+  await page.reload();
+  await page.waitForSelector('.page-letter');
   await drag({ x: 190, y: spawn.y });
   await page.waitForTimeout(600);
   assert.ok(await page.locator('.page-letter').evaluateAll((letters) => letters.some((letter) => Math.abs(new DOMMatrix(letter.style.transform).b) > 0.01)),
@@ -69,13 +89,20 @@ for (const cached of [true, false]) {
   assert.ok(await page.locator('.page-letter').evaluateAll((letters) => letters.every((letter) => Math.abs(new DOMMatrix(letter.style.transform).b) < 0.001)));
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ id: 0, ...spawn }] });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ id: 0, x: 250, y: 300 }] });
+  await page.waitForTimeout(80);
+  const cancelled = await center();
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
-  await unchanged(spawn, 'Cancelling the ball drag must preserve position');
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ id: 0, ...spawn }] });
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ id: 0, ...spawn }, { id: 1, x: 250, y: 300 }] });
+  await unchanged(cancelled, 'Cancelling the ball drag must preserve its current position');
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ id: 0, ...cancelled }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ id: 0, ...cancelled }, { id: 1, x: 300, y: 380 }] });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ id: 0, x: 200, y: 200 }, { id: 1, x: 260, y: 310 }] });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  await unchanged(spawn, 'Two fingers must cancel ball navigation');
+  await unchanged(cancelled, 'Two fingers must stop ball dragging at its current position');
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ id: 0, x: 100, y: 430 }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ id: 0, x: 100, y: 430 }, { id: 1, ...cancelled }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ id: 0, x: 100, y: 430 }, { id: 1, x: 180, y: 280 }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await unchanged(cancelled, 'A second finger touching the ball must not start dragging');
   await page.goto(url);
   await page.getByRole('button', { name: 'Switch to list view' }).click();
   await page.waitForSelector('.page-letter');

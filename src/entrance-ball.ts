@@ -22,8 +22,7 @@ export class EntranceBall {
   private readonly letters: PageLetters;
   private readonly shell: HTMLElement;
   private readonly rows: HTMLElement[];
-  private tapStart: { id: number; x: number; y: number } | undefined;
-  private tapTarget: THREE.Vector2 | undefined;
+  private touchDrag: { id: number; offset: THREE.Vector2 } | undefined;
   private readonly keys = new Set<string>();
   private readonly player = new PlayerState();
   private readonly position = this.player.pos;
@@ -80,6 +79,7 @@ export class EntranceBall {
     window.addEventListener('pointermove', this.pointerMove, { signal: this.listeners.signal });
     document.addEventListener('pointerleave', this.pointerLeave, { signal: this.listeners.signal });
     document.addEventListener('visibilitychange', this.clearInput, { signal: this.listeners.signal });
+    document.addEventListener('visibilitychange', this.cancelTouchDrag, { signal: this.listeners.signal });
     this.shell.addEventListener('pointerdown', this.pointerDown, { signal: this.listeners.signal });
     this.shell.addEventListener('pointerup', this.pointerUp, { signal: this.listeners.signal });
     this.shell.addEventListener('pointercancel', this.cancelTouchDrag, { signal: this.listeners.signal });
@@ -133,6 +133,7 @@ export class EntranceBall {
   };
 
   private returnToAnchor(): void {
+    this.cancelTouchDrag();
     this.player.place(new THREE.Vector3());
     this.player.grounded = true;
     this.pushed.set(0, 0);
@@ -141,7 +142,6 @@ export class EntranceBall {
     this.canvas.getBoundingClientRect();
     this.canvas.style.transition = '';
     this.canvas.style.transform = `translate(0, ${this.baseY()}px)`;
-    this.tapTarget = undefined;
     if (this.letters) this.letters.relocateBall(this.documentCenter());
   }
 
@@ -159,6 +159,7 @@ export class EntranceBall {
   }
 
   private readonly keyDown = (event: KeyboardEvent): void => {
+    if (this.touchDrag) return;
     if (event.repeat) return;
     const key = event.key.toLowerCase();
     if (!['w', 'a', 's', 'd', 'q', 'e', 'arrowleft', 'arrowright', ' ', 'r'].includes(key)) return;
@@ -209,7 +210,6 @@ export class EntranceBall {
     const x = Number(this.keys.has('d')) - Number(this.keys.has('a'));
     const z = Number(this.keys.has('s')) - Number(this.keys.has('w'));
     if (x || z) {
-      this.tapTarget = undefined;
       const [worldX, worldZ] = movementDirection(x, z, this.cameraAngle, 2);
       this.velocity.add(new THREE.Vector3(worldX, 0, worldZ).normalize().multiplyScalar(CONFIG.moveSpeed));
       this.displaced = true;
@@ -232,15 +232,6 @@ export class EntranceBall {
     const up = new THREE.Vector3().setFromMatrixColumn(this.viewCamera.matrixWorld, 1);
     this.screenOffset.x += motion.dot(right) / this.unitsPerPixel;
     this.screenOffset.y -= motion.dot(up) / this.unitsPerPixel;
-    if (this.tapTarget) {
-      const delta = this.tapTarget.clone().sub(this.documentCenter());
-      const distance = delta.length();
-      if (distance < 0.5) this.tapTarget = undefined;
-      else {
-        this.screenOffset.addScaledVector(delta.normalize(), Math.min(distance, Math.max(0.5, Math.min(3.2, distance * 0.14))));
-        this.displaced = true;
-      }
-    }
     if (this.displaced) this.placeBall();
     this.collideCursor();
     this.letters.step(this.documentCenter(), this.brokenAt === undefined);
@@ -262,6 +253,10 @@ export class EntranceBall {
   private readonly pointerMove = (event: PointerEvent): void => {
     if (event.pointerType === 'touch') {
       this.cursor.hide();
+      if (this.touchDrag?.id === event.pointerId) {
+        event.preventDefault();
+        this.moveTouchDrag(event);
+      }
       return;
     }
     const target = new THREE.Vector2(event.clientX, event.clientY);
@@ -282,33 +277,41 @@ export class EntranceBall {
 
   private readonly pointerDown = (event: PointerEvent): void => {
     if (event.pointerType !== 'touch') return;
-    if (this.tapStart) { this.cancelTouchDrag(); return; }
+    if (this.touchDrag) { this.cancelTouchDrag(); return; }
+    if (!event.isPrimary) return;
     if (event.target !== this.canvas || this.brokenAt !== undefined || !window.getSelection()?.isCollapsed) return;
     if (this.ballCenter().distanceTo(new THREE.Vector2(event.clientX, event.clientY)) > 16) return;
-    this.tapStart = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    this.touchDrag = { id: event.pointerId,
+      offset: this.ballCenter().sub(new THREE.Vector2(event.clientX, event.clientY)) };
     this.canvas.setPointerCapture(event.pointerId);
-    this.tapTarget = undefined;
     this.clearInput();
+    this.player.place(new THREE.Vector3());
+    this.player.grounded = true;
     event.preventDefault();
   };
 
   private readonly pointerUp = (event: PointerEvent): void => {
-    const start = this.tapStart;
-    this.tapStart = undefined;
-    if (!start || start.id !== event.pointerId) return;
-    if (this.canvas.hasPointerCapture(event.pointerId)) this.canvas.releasePointerCapture(event.pointerId);
+    if (this.touchDrag?.id !== event.pointerId) return;
     event.preventDefault();
-    if (Math.hypot(event.clientX - start.x, event.clientY - start.y) <= 10) return;
-    const bounds = this.shell.getBoundingClientRect();
-    this.tapTarget = new THREE.Vector2(event.clientX - bounds.left, event.clientY - bounds.top);
-    this.clearInput();
-    this.canvas.style.transition = 'none';
+    this.moveTouchDrag(event);
+    this.cancelTouchDrag();
   };
 
+  private moveTouchDrag(event: PointerEvent): void {
+    const target = new THREE.Vector2(event.clientX, event.clientY).add(this.touchDrag!.offset);
+    const bounds = this.root.getBoundingClientRect();
+    this.screenOffset.set(target.x - bounds.left - this.canvas.offsetLeft - this.canvas.clientWidth / 2 - this.pushed.x,
+      target.y - bounds.top - this.baseY() - this.canvas.clientHeight / 2 - this.pushed.y);
+    this.displaced = true;
+    this.clearInput();
+    this.placeBall();
+    this.letters.step(this.documentCenter(), true);
+  }
+
   private readonly cancelTouchDrag = (): void => {
-    const start = this.tapStart;
-    this.tapStart = undefined;
-    if (start && this.canvas.hasPointerCapture(start.id)) this.canvas.releasePointerCapture(start.id);
+    const drag = this.touchDrag;
+    this.touchDrag = undefined;
+    if (drag && this.canvas.hasPointerCapture(drag.id)) this.canvas.releasePointerCapture(drag.id);
   };
 
   private readonly pointerLeave = (): void => {

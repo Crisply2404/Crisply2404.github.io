@@ -107,24 +107,31 @@ for (let attempt = 1; attempt < fractureImages.length; attempt += 1) {
   assert.notDeepEqual(fractureImages[attempt], fractureImages[attempt - 1], 'Every fracture must produce different random arcs');
 }
 
-const pushCenter = { x: reborn.x + 16, y: reborn.y + 16 };
+await page.getByRole('link', { name: 'Notes', exact: true }).focus();
+await page.waitForTimeout(500);
+const pushStart = await ball.boundingBox();
+const pushCenter = { x: pushStart.x + 16, y: pushStart.y + 16 };
 await page.mouse.move(1100, 0);
 await page.mouse.move(pushCenter.x - 100, 0);
 await page.mouse.move(pushCenter.x - 100, pushCenter.y - 40);
 await page.mouse.move(pushCenter.x - 24, pushCenter.y - 42);
 await page.waitForTimeout(80);
 const pushed = await ball.boundingBox();
-assert.ok(Math.hypot(pushed.x - reborn.x, pushed.y - reborn.y) > 1, 'Cursor block must push the ball');
+assert.ok(Math.hypot(pushed.x - pushStart.x, pushed.y - pushStart.y) > 1, 'Cursor block must push the ball');
 assert.equal(await ball.evaluate((canvas) => canvas.classList.contains('is-broken')), false);
-await page.mouse.move(1100, 400);
+await page.mouse.move(pushCenter.x - 100, pushCenter.y - 42);
+await page.mouse.move(pushCenter.x - 100, 0);
+await page.mouse.move(1100, 0);
 await page.waitForTimeout(500);
 const afterPush = await ball.boundingBox();
-assert.ok(Math.abs(afterPush.x - pushed.x) < 0.5, 'Ball must retain its position after the cursor block moves away');
-await page.getByRole('link', { name: 'Essays', exact: true }).hover();
+assert.ok(Math.hypot(afterPush.x - pushed.x, afterPush.y - pushed.y) > 0.5, 'A moving cursor must strike the ball and preserve motion after contact');
+await page.waitForTimeout(1300);
+const settled = await ball.boundingBox();
+await page.getByRole('link', { name: 'Notes', exact: true }).focus();
 await page.waitForTimeout(500);
 const sameSelection = await ball.boundingBox();
-assert.ok(Math.abs(sameSelection.x - pushed.x) < 0.5, 'Hovering the same entrance must preserve a pushed ball');
-await page.getByRole('link', { name: 'Notes', exact: true }).hover();
+assert.ok(Math.abs(sameSelection.x - settled.x) < 0.5, 'Hovering the same entrance must preserve its settled position: ' + JSON.stringify({ settled, sameSelection }));
+await page.getByRole('link', { name: 'Essays', exact: true }).focus();
 await page.waitForTimeout(500);
 const changedSelection = await ball.boundingBox();
 assert.ok(Math.abs(changedSelection.x - before.x) < 0.5, 'Changing entrance selection must return the ball to its title');
@@ -149,10 +156,12 @@ assert.ok(Math.abs(outsidePush.x - before.x) > 20, 'A block collision must prese
 await page.mouse.move(outsideCenter.x - 100, outsideCenter.y - 42);
 await page.mouse.move(outsideCenter.x - 100, 0);
 await page.mouse.move(1200, 0);
-await page.waitForTimeout(500);
+await page.waitForTimeout(1800);
 const outsideAfterLeave = await ball.boundingBox();
-assert.ok(Math.hypot(outsideAfterLeave.x - outsidePush.x, outsideAfterLeave.y - outsidePush.y) < 0.5,
-  'Leaving block contact outside a highlighted row must preserve the pushed position');
+await page.waitForTimeout(500);
+const outsideSettled = await ball.boundingBox();
+assert.ok(Math.hypot(outsideAfterLeave.x - outsideSettled.x, outsideAfterLeave.y - outsideSettled.y) < 0.5,
+  'The struck ball must decelerate and preserve its final position');
 await page.getByRole('button', { name: 'Switch to game view' }).click();
 await page.waitForSelector('.scene-canvas');
 assert.equal(await page.locator('.game-cursor').count(), 0);

@@ -2,14 +2,16 @@ import * as THREE from 'three';
 import { CONFIG, PHYSICS, VIEWPORT, movementDirection } from './mono/config';
 import { VisualBuilder } from './mono/objects';
 import { MonoRenderer } from './mono/renderer';
-import { GameCursor } from './mono/game-cursor';
+import { GameCursor, cursorRestitution } from './mono/game-cursor';
 import { PlayerState } from './mono/physics';
 import { PageLetters } from './page-letters';
 import { readPagePlayState, savePagePlayState } from './page-play-state';
+import { pointerPosition } from './pointer-position';
 export { pagePhysicsReady } from './page-letters';
 
 export class EntranceBall {
   private readonly canvas = document.createElement('canvas');
+  private readonly objects = document.createElement('div');
   private readonly rendering = new MonoRenderer(this.canvas, true);
   private readonly builder = new VisualBuilder(this.rendering);
   private readonly scene = new THREE.Scene();
@@ -30,6 +32,7 @@ export class EntranceBall {
   private readonly shards = new THREE.Group();
   private readonly pushed = new THREE.Vector2();
   private readonly screenOffset = new THREE.Vector2();
+  private readonly strikeVelocity = new THREE.Vector2();
   private readonly shardMotion: { piece: THREE.Mesh; angle: number; distance: number; spin: number }[] = [];
   private selectedRow: HTMLElement;
   private animationFrame = 0;
@@ -43,6 +46,7 @@ export class EntranceBall {
   private unitsPerPixel = CONFIG.playerRadius * 2 / 24;
   private cursorBlocked = false;
   private lastCursorPosition = new THREE.Vector2(Number.NaN, Number.NaN);
+  private lastPointerTime = 0;
 
   public constructor(private readonly root: HTMLElement) {
     this.rows = root.matches('.entrance-list') ? [...root.querySelectorAll<HTMLElement>('.entry-row')] : [];
@@ -52,13 +56,20 @@ export class EntranceBall {
       this.rows = [heading];
     }
     const saved = readPagePlayState();
+    const panel = root.querySelector<HTMLElement>('.work-panel');
+    if (panel && saved?.workOpen) {
+      panel.classList.add('is-open');
+      panel.inert = false;
+      root.querySelector('.work-toggle')!.setAttribute('aria-expanded', 'true');
+    }
     this.selectedRow = this.rows[Math.min(saved?.selected ?? 0, this.rows.length - 1)];
     this.shell = root.closest<HTMLElement>('.site-shell')!;
     this.canvas.className = 'entrance-ball';
     this.canvas.classList.toggle('touch-ball', navigator.maxTouchPoints > 0);
     this.canvas.setAttribute('aria-hidden', 'true');
-    root.append(this.canvas);
-    document.body.classList.add('list-cursor-mode');
+    this.objects.className = 'page-objects';
+    this.objects.append(this.canvas, this.cursor.canvas);
+    root.append(this.objects);
     this.camera.position.z = 1000;
     this.scene.add(this.ball, this.shards);
     this.shards.visible = false;
@@ -90,12 +101,28 @@ export class EntranceBall {
     });
     if (saved) { this.screenOffset.set(saved.ball.x, saved.ball.y); this.displaced = true; this.placeBall(); }
     this.resizeObserver.observe(root);
+    if (pointerPosition) {
+      this.cursor.move(pointerPosition.x, pointerPosition.y);
+      this.lastCursorPosition.set(pointerPosition.x, pointerPosition.y);
+      document.body.classList.add('list-cursor-mode');
+    }
     this.animationFrame = requestAnimationFrame(this.frame);
+  }
+
+  public toggleWork(button: HTMLButtonElement): void {
+    const panel = this.root.querySelector<HTMLElement>('.work-panel')!;
+    const open = button.getAttribute('aria-expanded') !== 'true';
+    button.setAttribute('aria-expanded', String(open));
+    if (!open && panel.contains(this.selectedRow)) this.selectRow(button);
+    panel.inert = !open;
+    panel.classList.toggle('is-open', open);
+    this.letters.resize();
   }
 
   public destroy(): void {
     savePagePlayState({ selected: this.rows.indexOf(this.selectedRow),
-      ball: { x: this.screenOffset.x + this.pushed.x, y: this.screenOffset.y + this.pushed.y }, letters: this.letters.snapshot() });
+      ball: { x: this.screenOffset.x + this.pushed.x, y: this.screenOffset.y + this.pushed.y }, letters: this.letters.snapshot(),
+      workOpen: this.root.querySelector('.work-toggle')?.getAttribute('aria-expanded') === 'true' });
     this.cancelTouchDrag();
     this.listeners.abort();
     cancelAnimationFrame(this.animationFrame);
@@ -109,6 +136,7 @@ export class EntranceBall {
     this.cursor.destroy();
     document.body.classList.remove('list-cursor-mode');
     this.canvas.remove();
+    this.objects.remove();
   }
 
   private readonly resize = (): void => {
@@ -138,6 +166,7 @@ export class EntranceBall {
     this.player.grounded = true;
     this.pushed.set(0, 0);
     this.screenOffset.set(0, 0);
+    this.strikeVelocity.set(0, 0);
     this.displaced = false;
     this.canvas.getBoundingClientRect();
     this.canvas.style.transition = '';
@@ -146,6 +175,7 @@ export class EntranceBall {
   }
 
   private selectRow(row: HTMLElement): void {
+    if (row.closest('[inert]')) return;
     if (this.selectedRow === row) return;
     this.selectedRow = row;
     this.clearInput();
@@ -232,6 +262,8 @@ export class EntranceBall {
     const up = new THREE.Vector3().setFromMatrixColumn(this.viewCamera.matrixWorld, 1);
     this.screenOffset.x += motion.dot(right) / this.unitsPerPixel;
     this.screenOffset.y -= motion.dot(up) / this.unitsPerPixel;
+    this.strikeVelocity.multiplyScalar(CONFIG.friction);
+    this.screenOffset.add(this.strikeVelocity);
     if (this.displaced) this.placeBall();
     this.collideCursor();
     this.letters.step(this.documentCenter(), this.brokenAt === undefined);
@@ -245,6 +277,7 @@ export class EntranceBall {
     const bounds = this.root.getBoundingClientRect();
     const baseLeft = bounds.left + this.canvas.offsetLeft;
     const displayedX = THREE.MathUtils.clamp(x, 16 - baseLeft, innerWidth - 48 - baseLeft);
+    this.screenOffset.x += displayedX - x;
     const displayedY = this.baseY() + y;
     this.canvas.style.transition = 'none';
     this.canvas.style.transform = `translate(${displayedX}px, ${displayedY}px)`;
@@ -253,6 +286,7 @@ export class EntranceBall {
   private readonly pointerMove = (event: PointerEvent): void => {
     if (event.pointerType === 'touch') {
       this.cursor.hide();
+      document.body.classList.remove('list-cursor-mode');
       if (this.touchDrag?.id === event.pointerId) {
         event.preventDefault();
         this.moveTouchDrag(event);
@@ -262,14 +296,19 @@ export class EntranceBall {
     const target = new THREE.Vector2(event.clientX, event.clientY);
     const previous = this.lastCursorPosition;
     const distance = Number.isFinite(previous.x) ? previous.distanceTo(target) : 0;
+    const elapsed = this.lastPointerTime ? Math.max((event.timeStamp - this.lastPointerTime) / 1000, 1 / 240) : 0;
+    const cursorVelocity = elapsed && Number.isFinite(previous.x)
+      ? target.clone().sub(previous).divideScalar(elapsed * 60) : new THREE.Vector2();
     const steps = Math.max(1, Math.ceil(distance / 4));
     const start = Number.isFinite(previous.x) ? previous.clone() : target;
     for (let index = 1; index <= steps; index += 1) {
       const point = start.clone().lerp(target, index / steps);
       this.cursor.move(point.x, point.y);
-      this.collideCursor();
+      document.body.classList.add('list-cursor-mode');
+      this.collideCursor(cursorVelocity);
     }
     this.lastCursorPosition.copy(target);
+    this.lastPointerTime = event.timeStamp;
     if (this.cursorBlocked && !this.cursor.contact(this.ballCenter())) {
       this.cursorBlocked = false;
     }
@@ -287,6 +326,7 @@ export class EntranceBall {
     this.clearInput();
     this.player.place(new THREE.Vector3());
     this.player.grounded = true;
+    this.strikeVelocity.set(0, 0);
     event.preventDefault();
   };
 
@@ -316,7 +356,9 @@ export class EntranceBall {
 
   private readonly pointerLeave = (): void => {
     this.cursor.hide();
+    document.body.classList.remove('list-cursor-mode');
     this.lastCursorPosition.set(Number.NaN, Number.NaN);
+    this.lastPointerTime = 0;
     this.cursorBlocked = false;
   };
 
@@ -331,7 +373,7 @@ export class EntranceBall {
     return point.sub(new THREE.Vector2(bounds.left, bounds.top));
   }
 
-  private collideCursor(): void {
+  private collideCursor(cursorVelocity = new THREE.Vector2()): void {
     if (this.brokenAt !== undefined) return;
     const contact = this.cursor.contact(this.ballCenter());
     if (!contact) return;
@@ -345,15 +387,25 @@ export class EntranceBall {
       this.clearInput();
       return;
     }
-    this.pushed.addScaledVector(contact.normal, -contact.distance + 0.2);
+    this.pushed.addScaledVector(contact.normal, -contact.distance);
     this.displaced = true;
-    this.velocity.set(0, 0, 0);
+    const right = new THREE.Vector3().setFromMatrixColumn(this.viewCamera.matrixWorld, 0);
+    const up = new THREE.Vector3().setFromMatrixColumn(this.viewCamera.matrixWorld, 1);
+    const ballVelocity = new THREE.Vector2(this.velocity.dot(right) / this.unitsPerPixel,
+      -this.velocity.dot(up) / this.unitsPerPixel).add(this.strikeVelocity);
+    const closingSpeed = cursorVelocity.clone().sub(ballVelocity).dot(contact.normal);
+    if (closingSpeed > 0) this.strikeVelocity.addScaledVector(contact.normal, closingSpeed * (cursorVelocity.lengthSq() ? 1 + cursorRestitution : 1));
     this.placeBall();
+    const remaining = this.cursor.contact(this.ballCenter());
+    if (remaining?.kind === 'block' && remaining.distance < -0.00001) {
+      this.pushed.y += this.cursor.verticalSeparation(this.ballCenter());
+      this.placeBall();
+    }
   }
 
   private respawn(): void {
     const center = this.ballCenter();
-    const rows = this.rows;
+    const rows = this.rows.filter((row) => !row.closest('[inert]'));
     this.selectedRow = rows.reduce((nearest, row) => {
       const distance = (item: HTMLElement): number => {
         const bounds = item.getBoundingClientRect();

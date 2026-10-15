@@ -2,6 +2,7 @@ import { marked } from 'marked';
 import type { CollectionKind } from './content';
 import { entriesFor } from './content';
 import { doors } from './sceneConfig';
+import { githubLink } from './site-profile';
 
 function header(): string {
   return `
@@ -65,11 +66,13 @@ export function renderListPage(): string {
     <div class="site-shell">
       <header class="site-header">
         <a class="site-title" href="/">Crisply2404</a>
-        <button class="view-toggle" data-view-toggle aria-label="Switch to game view" title="Switch to game view">◉</button>
+        <div class="header-actions">${githubLink()}
+          <button class="view-toggle" data-view-toggle aria-label="Switch to game view" title="Switch to game view">◉</button>
+        </div>
       </header>
       <main class="list-root">
         <nav class="entry-list entrance-list" aria-label="Site entrances">
-          ${doors
+          ${doors.filter((door) => door.group !== 'work')
             .map(
               (link) => `
                 <a class="entry-row" href="${link.path}">
@@ -78,6 +81,16 @@ export function renderListPage(): string {
               `,
             )
             .join('')}
+          <button class="entry-row work-toggle" aria-expanded="false" aria-controls="work-projects">
+            <span class="entry-title">Work</span>
+          </button>
+          <div class="work-panel" id="work-projects" inert>
+            <div class="work-items">
+              ${doors.filter((door) => door.group === 'work').map((door) => `
+                <a class="entry-row work-project" href="${door.path}"><span class="entry-title">${door.title}</span></a>
+              `).join('')}
+            </div>
+          </div>
         </nav>
       </main>
     </div>

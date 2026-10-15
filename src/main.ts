@@ -6,6 +6,8 @@ import type { CollectionKind } from './content';
 import type { ViewMode } from './types';
 import { resetPagePlayState } from './page-play-state';
 import { ViewToggleHint } from './view-toggle-hint';
+import { githubProfile } from './site-profile';
+import './pointer-position';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) {
@@ -45,17 +47,21 @@ async function renderHome(): Promise<void> {
     appRoot.querySelector<HTMLButtonElement>('[data-view-toggle]')?.addEventListener('click', () => setMode('game'));
     const [{ EntranceBall, pagePhysicsReady }, { physicsReady }] = await Promise.all([import('./entrance-ball'), import('./mono/physics')]);
     await Promise.all([physicsReady, pagePhysicsReady]);
+    await document.fonts.ready;
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     if (generation !== routeGeneration) return;
     const entrances = appRoot.querySelector<HTMLElement>('.entrance-list');
     if (!entrances) throw new Error('Site entrances are unavailable');
     activeEntrances = new EntranceBall(entrances);
+    const work = appRoot.querySelector<HTMLButtonElement>('.work-toggle')!;
+    work.addEventListener('click', () => activeEntrances!.toggleWork(work));
     return;
   }
 
   appRoot.innerHTML = `
     <div class="site-shell">
       <header class="site-header game-header">
-        <a class="site-title" href="/">Crisply2404</a>
+        <a class="site-title" href="${githubProfile}">Crisply2404</a>
         <button class="view-toggle" data-view-toggle aria-label="Switch to list view" title="Switch to list view">☷</button>
       </header>
       <main class="scene-root"></main>

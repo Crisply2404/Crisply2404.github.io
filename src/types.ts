@@ -16,6 +16,7 @@ export interface DoorConfig {
   z: number;
   accent: string;
   graphics: DoorGraphicId;
+  group?: 'work';
   appearance?: 'open' | 'completed' | 'exit';
 }
 

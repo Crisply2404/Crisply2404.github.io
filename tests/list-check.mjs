@@ -15,14 +15,14 @@ for (const { viewport, reducedMotion } of scenarios) {
   await page.goto(baseUrl);
   await page.getByRole('button', { name: 'Switch to list view' }).click();
   const entrances = page.getByRole('navigation', { name: 'Site entrances' });
-  const rows = entrances.getByRole('link');
+  const rows = entrances.locator(':scope > .entry-row');
   const ball = entrances.locator('.entrance-ball');
   await ball.waitFor();
   await page.waitForTimeout(500);
   assert.equal(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches), reducedMotion === 'reduce');
   assert.equal(await ball.evaluate((canvas) => getComputedStyle(canvas).transitionDuration), '0.42s');
-  assert.deepEqual(await rows.allTextContents().then((titles) => titles.map((title) => title.trim())), ['Notes', 'Essays', '击鼓传字']);
-  assert.deepEqual(await rows.evaluateAll((links) => links.map((link) => new URL(link.href).pathname)), ['/notes/', '/essays/', '/chuan-zi/']);
+  assert.deepEqual(await rows.allTextContents().then((titles) => titles.map((title) => title.trim())), ['Notes', 'Essays', 'Work']);
+  assert.deepEqual(await rows.evaluateAll((links) => links.map((link) => link.getAttribute('href'))), ['/notes/', '/essays/', null]);
   assert.equal(await entrances.locator('.entry-index, .entry-path').count(), 0);
   await entrances.evaluate((nav) => {
     if (getComputedStyle(nav).borderTopWidth !== '0px') throw new Error('Entrance list has a divider');

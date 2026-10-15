@@ -9,7 +9,7 @@ The homepage mode that renders the corridor, doors, local ball, and temporary vi
 _Avoid_: game page, 3D mode
 
 **List view**:
-The homepage mode that lists the corridor doors from top to bottom using the same visual language as the Game view. Entrance rows show titles and invert their colors on hover or keyboard focus.
+The homepage mode that lists Notes, Essays and Work from top to bottom using the same visual language as the Game view. Work expands its project entrances in place with height and opacity transitions. Entrance rows invert their colors on hover or keyboard focus. The header adds a GitHub profile icon beside the mode button.
 _Avoid_: normal page, fallback page
 
 **Entrance ball**:
@@ -25,7 +25,7 @@ The ball position, selected entrance and individual letter positions belonging t
 The animated hint underneath the homepage mode button that explains how to enter the List view. Its upward tip points to that button. It remains available until that visitor first uses the button.
 
 **Game cursor**:
-The original standard block with one spike on top, replacing the mouse cursor in the List view. The spike tip marks the pointer position. Its view rotates around its own center with the keyboard, and its projected block and spike geometry define the Entrance ball collision areas. Each pixel inverts over highlighted entrance regions while preserving its appearance over black regions. It is hidden for touch input and removed when leaving the List view.
+The original standard block with one spike on top, replacing the mouse cursor in the List view. The spike tip marks the pointer position. Its view rotates around its own center with the keyboard. Collision boundaries contain the projected geometry and both visible stroke widths. A moving block transfers its normal velocity to the ball with restitution 0.65 and keeps following the pointer. The ball continues moving and slows through friction. Cursor and ball share one compositing group, which inverts over highlighted rows while preserving white intersections between them. It is hidden for touch input and removed when leaving the List view.
 
 **Corridor**:
 A straight, extendable passage whose configured doors are the site's entrances.

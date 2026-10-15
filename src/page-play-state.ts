@@ -3,6 +3,7 @@ export interface PagePlayState {
   selected: number;
   ball: { x: number; y: number };
   letters: LetterState[];
+  workOpen?: boolean;
 }
 
 const storageKey = 'crisply2404-page-play';

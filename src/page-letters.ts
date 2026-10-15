@@ -5,6 +5,7 @@ export const pagePhysicsReady = RAPIER.init();
 
 interface Letter {
   element: HTMLSpanElement;
+  section: HTMLElement | null;
   range: Range;
   body: RAPIER.RigidBody;
   collider: RAPIER.Collider;
@@ -63,6 +64,7 @@ export class PageLetters {
       this.firstStep = false;
     }
     const previous = this.ball.translation();
+    for (const letter of this.letters) letter.collider.setEnabled(!letter.section?.inert);
     const distance = Math.hypot(center.x - previous.x, center.y - previous.y);
     const substeps = Math.max(1, Math.ceil(distance / 0.5));
     this.world.timestep = 1 / (60 * substeps);
@@ -109,7 +111,7 @@ export class PageLetters {
   }
 
   public get bottom(): number {
-    return this.letters.reduce((height, letter) => letter.element.classList.contains('page-header-letter')
+    return this.letters.reduce((height, letter) => letter.section?.inert || letter.element.classList.contains('page-header-letter')
       ? height : Math.max(height, letter.body.translation().y + letter.height), 0);
   }
 
@@ -148,14 +150,16 @@ export class PageLetters {
         element.classList.add('page-link-letter');
         element.addEventListener('pointerenter', (event) => {
           if (event.pointerType === 'touch') return;
+          if (source.closest('[inert]')) return;
           action.classList.add('letter-hover');
           this.onSelect(action);
         });
         element.addEventListener('pointerleave', () => action.classList.remove('letter-hover'));
-        element.addEventListener('click', () => action.click());
+        element.addEventListener('click', () => { if (!source.closest('[inert]')) action.click(); });
       }
       this.overlay.append(element);
-      this.letters.push({ element, range, body, collider, origin, width: rect.width, height: rect.height });
+      this.letters.push({ element, section: source.closest<HTMLElement>('.work-panel'), range, body, collider, origin,
+        width: rect.width, height: rect.height });
     }
     this.sources.add(source);
   }
@@ -163,6 +167,8 @@ export class PageLetters {
   private paint(): void {
     const scroll = window.scrollY;
     for (const letter of this.letters) {
+      letter.element.hidden = Boolean(letter.section?.inert && Number(getComputedStyle(letter.section).opacity) < 0.001);
+      if (letter.section) letter.element.style.opacity = getComputedStyle(letter.section).opacity;
       const position = letter.body.translation(), angle = letter.body.rotation();
       const fixed = letter.element.classList.contains('page-header-letter');
       const x = position.x - letter.width / 2;
@@ -171,7 +177,7 @@ export class PageLetters {
       if (letter.element.style.transform !== transform) letter.element.style.transform = transform;
       if (letter.element.classList.contains('page-link-letter')) {
         const moved = Math.hypot(position.x - letter.origin.x, position.y - letter.origin.y) > 0.5 || Math.abs(angle) > 0.01;
-        letter.element.style.pointerEvents = moved ? 'auto' : 'none';
+        letter.element.style.pointerEvents = moved && !letter.section?.inert ? 'auto' : 'none';
       }
     }
   }

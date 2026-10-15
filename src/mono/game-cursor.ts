@@ -1,10 +1,11 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
-import { VIEWPORT } from './config';
+import { CONFIG, VIEWPORT } from './config';
 import { VisualBuilder } from './objects';
 import { MonoRenderer } from './renderer';
 
 export interface CursorContact { kind: 'spike' | 'block'; normal: THREE.Vector2; distance: number }
+export const cursorRestitution = 0.65;
 
 export class GameCursor {
   public readonly canvas = document.createElement('canvas');
@@ -19,7 +20,8 @@ export class GameCursor {
   private readonly pointer = new THREE.Vector2();
   private readonly hotspot = new THREE.Vector2();
   private readonly shapes = new Map<'spike' | 'block', RAPIER.ConvexPolyhedron>();
-  private readonly sphere = new RAPIER.Ball(12);
+  // 球体圆周与光标边缘各占 0.75 像素，接触距离同时包含双方线宽。
+  private readonly sphere = new RAPIER.Ball((CONFIG.playerRadius + CONFIG.thickness / 2) * 0.6 + CONFIG.thickness * 0.6 / 2);
   private readonly rotation = { x: 0, y: 0, z: 0, w: 1 };
   private angle = Number.NaN;
   public active = false;
@@ -78,6 +80,23 @@ export class GameCursor {
         return { kind, normal: new THREE.Vector2(hit.normal1.x, hit.normal1.y).normalize(), distance: hit.distance };
       }
     }
+  }
+
+  public verticalSeparation(center: THREE.Vector2): number {
+    const origin = { x: this.pointer.x - this.hotspot.x, y: this.pointer.y - this.hotspot.y, z: 0 };
+    const zero = { x: 0, y: 0, z: 0 };
+    const distance = this.canvas.clientHeight + this.sphere.radius * 2;
+    const offsets = [-1, 1].map((direction) => {
+      const start = { x: center.x, y: center.y + direction * distance, z: 0 };
+      const velocity = { x: 0, y: -direction * distance, z: 0 };
+      let time = 1;
+      for (const shape of this.shapes.values()) {
+        const hit = shape.castShape(origin, this.rotation, zero, this.sphere, start, this.rotation, velocity, 0, 1, true);
+        if (hit) time = Math.min(time, hit.time_of_impact);
+      }
+      return direction * distance * (1 - time);
+    });
+    return Math.abs(offsets[0]) < Math.abs(offsets[1]) ? offsets[0] : offsets[1];
   }
 
   public destroy(): void {

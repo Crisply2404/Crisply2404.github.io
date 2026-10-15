@@ -12,6 +12,7 @@ export { pagePhysicsReady } from './page-letters';
 export class EntranceBall {
   private readonly canvas = document.createElement('canvas');
   private readonly objects = document.createElement('div');
+  private readonly workGuide: HTMLDivElement | undefined;
   private readonly rendering = new MonoRenderer(this.canvas, true);
   private readonly builder = new VisualBuilder(this.rendering);
   private readonly scene = new THREE.Scene();
@@ -68,6 +69,12 @@ export class EntranceBall {
     this.canvas.classList.toggle('touch-ball', navigator.maxTouchPoints > 0);
     this.canvas.setAttribute('aria-hidden', 'true');
     this.objects.className = 'page-objects';
+    if (panel) {
+      this.workGuide = document.createElement('div');
+      this.workGuide.className = 'work-guide';
+      this.workGuide.setAttribute('aria-hidden', 'true');
+      this.objects.append(this.workGuide);
+    }
     this.objects.append(this.canvas, this.cursor.canvas);
     root.append(this.objects);
     this.camera.position.z = 1000;
@@ -101,6 +108,7 @@ export class EntranceBall {
     });
     if (saved) { this.screenOffset.set(saved.ball.x, saved.ball.y); this.displaced = true; this.placeBall(); }
     this.resizeObserver.observe(root);
+    this.updateWorkGuide();
     if (pointerPosition) {
       this.cursor.move(pointerPosition.x, pointerPosition.y);
       this.lastCursorPosition.set(pointerPosition.x, pointerPosition.y);
@@ -188,6 +196,20 @@ export class EntranceBall {
     return title.top - root.top + (title.height - this.canvas.clientHeight) / 2;
   }
 
+  private updateWorkGuide(): void {
+    if (!this.workGuide) return;
+    const work = this.root.querySelector<HTMLElement>('.work-toggle')!.getBoundingClientRect();
+    const panel = this.root.querySelector<HTMLElement>('.work-panel')!;
+    const last = panel.querySelector<HTMLElement>('.work-project:last-child')!.getBoundingClientRect();
+    const top = work.top + work.height / 2;
+    const height = Math.max(0, work.height / 2 + panel.getBoundingClientRect().height - last.height / 2);
+    const headerBottom = this.shell.querySelector<HTMLElement>('.site-header')!.getBoundingClientRect().bottom;
+    this.workGuide.style.top = `${top - this.root.getBoundingClientRect().top}px`;
+    this.workGuide.style.height = `${height}px`;
+    this.workGuide.style.opacity = getComputedStyle(panel).opacity;
+    this.workGuide.style.clipPath = `inset(${Math.max(0, headerBottom - top)}px 0 0)`;
+  }
+
   private readonly keyDown = (event: KeyboardEvent): void => {
     if (this.touchDrag) return;
     if (event.repeat) return;
@@ -230,6 +252,7 @@ export class EntranceBall {
     this.cursor.setAngle(this.cameraAngle);
     while (this.accumulator >= 1 / 60) { this.step(); this.accumulator -= 1 / 60; }
     if (this.brokenAt !== undefined) this.animateShards(now);
+    this.updateWorkGuide();
     this.animationFrame = requestAnimationFrame(this.frame);
   };
 

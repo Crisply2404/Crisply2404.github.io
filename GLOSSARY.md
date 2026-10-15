@@ -9,7 +9,7 @@ The homepage mode that renders the corridor, doors, local ball, and temporary vi
 _Avoid_: game page, 3D mode
 
 **List view**:
-The homepage mode that lists Notes, Essays and Work from top to bottom using the same visual language as the Game view. Work expands its project entrances in place with height and opacity transitions. Entrance rows invert their colors on hover or keyboard focus. The header adds a GitHub profile icon beside the mode button.
+The homepage mode that lists Notes, Essays and Work from top to bottom using the same visual language as the Game view. Work opens an in-place project branch with a plus-to-minus mark, a vertical guide and short horizontal branches; height and opacity transition together. Entrance rows invert their colors on hover or keyboard focus. The header adds a GitHub profile icon beside the mode button.
 _Avoid_: normal page, fallback page
 
 **Entrance ball**:

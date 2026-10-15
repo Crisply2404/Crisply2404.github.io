@@ -82,12 +82,16 @@ export function renderListPage(): string {
             )
             .join('')}
           <button class="entry-row work-toggle" aria-expanded="false" aria-controls="work-projects">
+            <span class="work-mark" aria-hidden="true"></span>
             <span class="entry-title">Work</span>
           </button>
           <div class="work-panel" id="work-projects" inert>
             <div class="work-items">
               ${doors.filter((door) => door.group === 'work').map((door) => `
-                <a class="entry-row work-project" href="${door.path}"><span class="entry-title">${door.title}</span></a>
+                <a class="entry-row work-project" href="${door.path}">
+                  <span class="work-branch" aria-hidden="true"></span>
+                  <span class="entry-title">${door.title}</span>
+                </a>
               `).join('')}
             </div>
           </div>

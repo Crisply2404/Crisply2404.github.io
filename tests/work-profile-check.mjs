@@ -36,6 +36,8 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 
   await page.waitForTimeout(500);
   const sizes = await page.evaluate(() => window.workHeights);
   assert.equal(await work.getAttribute('aria-expanded'), 'true');
+  assert.equal(await work.locator('.work-mark').evaluate((mark) => getComputedStyle(mark, '::after').opacity), '0');
+  assert.equal(await page.locator('.work-panel').evaluate((panel) => getComputedStyle(panel, '::before').opacity), '1');
   assert.ok(sizes.some((height) => height > 1 && height < sizes.at(-1) - 1), 'Work must animate its height');
   const project = page.getByRole('link', { name: '击鼓传字', exact: true });
   assert.equal(await project.getAttribute('href'), '/chuan-zi/');

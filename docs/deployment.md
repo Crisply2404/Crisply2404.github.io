@@ -24,7 +24,9 @@ Work links to Hockey at `/hockey/`. The local `Hockey/` directory is a separate 
 
 Pages checks out the public repository into `hockey-source/`, installs its locked dependencies, builds with `npm run build -- --base=/hockey/`, and copies only `dist/` into the site's `dist/hockey/`. Builds use `main` by default. Set the `HOCKEY_REF` repository variable to select a revision, or supply `hockey_ref` when running `deploy.yml` manually. Hockey repository pushes become available on the next main site deployment.
 
-The existing game provides a local mode. Its online lobby needs a separate Worker, configured through the main repository's `HOCKEY_LOBBY_WS_URL` secret, which the workflow passes to Hockey as `VITE_LOBBY_WS_URL`. The initial integration publishes the current frontend; lobby service deployment belongs to Hockey's development.
+The Hockey repository owns its Cloudflare lobby Worker and deploy instructions. The deployed service is `https://hockey-lobby.tcoinsm.workers.dev`; its WebSocket endpoint is `wss://hockey-lobby.tcoinsm.workers.dev/ws`. Hockey connects to this endpoint by default, so the Pages build does not require `HOCKEY_LOBBY_WS_URL`. Setting this optional secret passes a custom endpoint as `VITE_LOBBY_WS_URL`. Player names, room creation, room joining, and game input travel through the Worker.
+
+After publishing changes to `Crisply2404/Hockey`, run the main repository's `deploy.yml` workflow to publish the selected Hockey revision under `/hockey/`.
 
 ## Presence relay
 

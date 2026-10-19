@@ -17,6 +17,8 @@ export const doors: DoorConfig[] = [
     graphics: 'essays' },
   { id: 'chuan-zi', title: '击鼓传字', path: '/chuan-zi/', side: 'left', z: -640, accent: '#ffffff',
     graphics: 'chuan-zi', group: 'work' },
+  { id: 'hockey', title: 'Hockey', path: '/hockey/', side: 'right', z: -880, accent: '#ffffff',
+    graphics: 'hockey', group: 'work' },
 ];
 
 export const corridorEndZ = Math.min(...doors.map((door) => door.z)) - 180;

@@ -219,8 +219,8 @@ async function runSiteChecks(): Promise<Record<string, unknown>> {
       scene.add(configuredGate); scene.updateMatrixWorld(true);
       const title = configuredGate.getObjectByName('DoorTitle') as THREE.Mesh | undefined;
       const symbol = configuredGate.getObjectByName('DoorSymbol') as THREE.Mesh;
-      if (door.graphics === 'chuan-zi') {
-        check(title === undefined, 'The drum door must use only its symbol'); checks += 1;
+      if (!doorGraphics[door.graphics].title) {
+        check(title === undefined, `${door.title} must use only its symbol`); checks += 1;
       } else {
         check(title !== undefined, 'Writing door title is missing'); checks += 1;
         const positions = title!.geometry.getAttribute('position');
@@ -229,7 +229,7 @@ async function runSiteChecks(): Promise<Record<string, unknown>> {
         check(title!.quaternion.equals(new THREE.Quaternion()) && titleBounds.min.z === 0 && titleBounds.max.z === 0,
           'Door title must share the door plane'); checks += 1;
         const font = (title!.material as THREE.MeshBasicMaterial).map;
-        const expectedTitle = door.graphics === 'notes' ? 'Notes' : 'Essays';
+        const expectedTitle = doorGraphics[door.graphics].title;
         check(font?.name === `${doorTitleFontWeight()} 256px ${doorTitleFont()}: ${expectedTitle}`
           && document.fonts.check(`${doorTitleFontWeight()} 256px ${doorTitleFont()}`),
           'Door title font or capitalization is incorrect'); checks += 1;

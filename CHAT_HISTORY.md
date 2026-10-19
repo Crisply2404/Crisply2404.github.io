@@ -1034,3 +1034,23 @@ Work 已加入 [Hockey](https://crisply2404.github.io/hockey/)，已发布。
 项目克隆在 [Hockey](/Users/hco/Documents/Crisply2404.github.io/Hockey)，已被主站 Git 忽略。主站只发布构建产物。
 
 桌面与手机检查通过。本地模式可用，联机服务尚未配置。
+
+### 用户结构化回答 · 2026-10-19 21:04 Asia/Shanghai
+
+问题：Work 中的 Hockey 入口这次打开哪里？
+
+回答：主站 /hockey/：发布现有网页，本地模式可用，联机服务留待 Hockey 完善时配置
+
+### 助手最终回复 · 2026-10-19 21:04 Asia/Shanghai
+
+已确认，当前发布正是这个方式：Work → `/hockey/`，联机服务留待 Hockey 完善时配置。
+
+### 用户消息 · 2026-10-19 Asia/Shanghai
+
+还有，你得加hockey在游戏版里的门，你可以参考hockey里面的元素来弄个门的图标，不用写门名。
+
+### 助手最终回复 · 2026-10-19 Asia/Shanghai
+
+游戏走廊已增加 Hockey 门，位于击鼓传字门之后的右侧。门内只有圆形球拍与十字冰球图标，靠近后进入 `/hockey/`。
+
+已发布，桌面、手机、遮挡和参考图检查通过。

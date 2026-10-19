@@ -4,7 +4,8 @@ import { chromium } from '@playwright/test';
 const browser = await chromium.launch({ channel: 'chrome', headless: true, downloadsPath: '.work/downloads' });
 try {
   for (const touch of [false, true]) {
-    for (const door of [{ path: '/notes/', x: -72, z: -160 }, { path: '/essays/', x: 72, z: -400 }, { path: '/chuan-zi/', x: -72, z: -640 }]) {
+    for (const door of [{ path: '/notes/', x: -72, z: -160 }, { path: '/essays/', x: 72, z: -400 },
+      { path: '/chuan-zi/', x: -72, z: -640 }, { path: '/hockey/', x: 72, z: -880 }]) {
       const page = await browser.newPage({ viewport: touch ? { width: 390, height: 844 } : { width: 1280, height: 800 }, hasTouch: touch, isMobile: touch });
       const errors = [];
       page.on('pageerror', (error) => errors.push(error.message));
@@ -19,7 +20,7 @@ try {
         if (touch) await page.touchscreen.tap(point.x, point.y);
         else await page.mouse.click(point.x, point.y);
       };
-      if (touch) {
+      if (touch || door.path === '/hockey/') {
         let approachZ = 40;
         while (approachZ - door.z > 200) {
           approachZ -= 160;

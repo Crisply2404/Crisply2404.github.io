@@ -1,7 +1,7 @@
 export type ViewMode = 'game' | 'list';
 
 export type DoorSide = 'left' | 'right';
-export type DoorGraphicId = 'notes' | 'essays' | 'chuan-zi';
+export type DoorGraphicId = 'notes' | 'essays' | 'chuan-zi' | 'hockey';
 
 export interface DoorGraphics {
   title?: string;

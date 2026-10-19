@@ -5,7 +5,9 @@ import { PhysicsEngine, PlayerState, physicsReady } from '../src/mono/physics';
 import { buildEdges, type BlockData } from '../src/mono/blocks';
 import { CONFIG, movementDirection } from '../src/mono/config';
 import { SafetyNavigationGraph, navigationForce } from '../src/mono/navigation';
-import { corridorBlocks, spawn, doors, doorPosition } from '../src/sceneConfig';
+import { corridorBlocks, doorPosition, doors, penroseBlocks, penroseJumpConnections, penroseSteps, sceneBlocks, spawn } from '../src/sceneConfig';
+import { penroseCycleHeight, penroseStepRise } from '../src/penrose-config';
+import { PenroseLoop } from '../src/mono/penrose';
 
 await physicsReady;
 const zero = new THREE.Vector3();
@@ -134,4 +136,29 @@ test('跳跃连接通过真实物理路径检查，危险节点不进入导航�
   assert.throws(() => new SafetyNavigationGraph([{ ...blocks[0] }, { ...blocks[1], gx: 20 }], [{ from, to: new THREE.Vector3(800, 40.02, 0) }]), /no safe physical trajectory/);
   const hazardous = new SafetyNavigationGraph([...blocks, { gx: 0, gy: 1, gz: 0, type: 'spike' }]);
   assert.equal(hazardous.isSafe(from), false);
+});
+
+test('Playground 的 Penrose stairs 使用紧凑台阶并在接缝处连续循环', () => {
+  const stairs = penroseBlocks();
+  assert.equal(stairs.length, penroseSteps.length);
+  assert.ok(stairs.every((block) => block.height === 10));
+  for (let index = 1; index < stairs.length; index += 1) {
+    assert.equal(stairs[index].centerY! - stairs[index - 1].centerY!, penroseStepRise);
+  }
+  const loop = new PenroseLoop();
+  const last = penroseSteps.at(-1)!;
+  const player = new PlayerState();
+  player.place(new THREE.Vector3(last.gx * 40, last.gy * penroseStepRise + 40.02, last.gz * 40));
+  player.grounded = true;
+  const before = loop.renderPosition(player.pos).y;
+  assert.equal(loop.wrapIfNeeded(player, new THREE.Vector3(0, 0, -1)), true);
+  assert.equal(loop.cycle, 1);
+  assert.ok(Math.abs(loop.renderPosition(player.pos).y - before - penroseStepRise) < 0.001);
+  player.place(new THREE.Vector3(penroseSteps[0].gx * 40, 40.02, penroseSteps[0].gz * 40));
+  player.grounded = true;
+  assert.equal(loop.wrapIfNeeded(player, new THREE.Vector3(0, 0, 1)), true);
+  assert.equal(loop.cycle, 0);
+  const graph = new SafetyNavigationGraph(sceneBlocks(), penroseJumpConnections());
+  assert.ok(graph.findPath(new THREE.Vector3(440, 40.02, -80), new THREE.Vector3(480, 50.02, -80)).length > 0);
+  assert.equal(penroseCycleHeight, penroseSteps.length * penroseStepRise);
 });

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { blockKey, type BlockData } from './blocks';
+import { blockKey, blockTopY, type BlockData } from './blocks';
 import { PhysicsEngine, PlayerState } from './physics';
 import { CONFIG } from './config';
 
@@ -31,21 +31,21 @@ export class SafetyNavigationGraph {
     this.surfaces = blocks.filter((block) => block.type === 'standard' && !occupied.has(blockKey(block.gx, block.gy + 1, block.gz)));
     for (const block of this.surfaces) {
       if (occupied.has(blockKey(block.gx, block.gy + 1, block.gz))) continue;
-      const position = new THREE.Vector3(block.gx * 40, block.gy * 40 + 40.02, block.gz * 40);
+      const position = new THREE.Vector3(block.gx * 40, blockTopY(block) + 20.02, block.gz * 40);
       this.nodes.set(position.toArray().join(':'), position);
     }
     for (const [id, position] of this.nodes) {
       if (this.isSafe(position)) this.edges.set(id, []);
       else this.nodes.delete(id);
     }
+    const physics = jumps.length ? new PhysicsEngine(blocks) : undefined;
+    const player = new PlayerState();
     for (const connection of jumps) {
       const from = [...this.nodes].find(([, position]) => position.distanceTo(connection.from) < 0.1)?.[0];
       const to = [...this.nodes].find(([, position]) => position.distanceTo(connection.to) < 0.1)?.[0];
       if (!from || !to || !this.isSafe(connection.from) || !this.isSafe(connection.to)) {
         throw new Error('Jump connection requires safe endpoints');
       }
-      const physics = new PhysicsEngine(blocks);
-      const player = new PlayerState();
       player.place(connection.from);
       player.grounded = true;
       player.jumpBuffer = 8;
@@ -53,7 +53,7 @@ export class SafetyNavigationGraph {
       let duration = 0;
       for (let tick = 0; tick < 90; tick += 1) {
         const force = navigationForce(player.pos, player.vel, connection.to);
-        if (!physics.step(player, force)) break;
+        if (!physics!.step(player, force)) break;
         if (player.grounded && player.pos.distanceTo(connection.to) < 0.5) {
           reached = true;
           duration = tick + 1;
@@ -61,10 +61,10 @@ export class SafetyNavigationGraph {
         }
         if (player.pos.y < connection.to.y - 100) break;
       }
-      physics.dispose();
       if (!reached) throw new Error('Jump connection has no safe physical trajectory');
       this.edges.get(from)!.push({ id: to, jump: true, duration });
     }
+    physics?.dispose();
   }
 
   public isSafe(position: THREE.Vector3): boolean {
@@ -73,7 +73,7 @@ export class SafetyNavigationGraph {
         const supported = this.surfaces.some((block) =>
           Math.abs(position.x + dx - block.gx * 40) <= 20.001 &&
           Math.abs(position.z + dz - block.gz * 40) <= 20.001 &&
-          Math.abs(position.y - (block.gy * 40 + 40.02)) < 0.1);
+          Math.abs(position.y - (blockTopY(block) + 20.02)) < 0.1);
         if (!supported) return false;
       }
     }
@@ -130,7 +130,7 @@ export class SafetyNavigationGraph {
     for (const dx of [-20, 0, 20]) for (const dz of [-20, 0, 20]) {
       const intervals: [number, number][] = [];
       for (const block of this.surfaces) {
-        if (Math.abs(start.y - (block.gy * 40 + 40.02)) > 0.1) continue;
+        if (Math.abs(start.y - (blockTopY(block) + 20.02)) > 0.1) continue;
         let from = 0, to = 1;
         for (const [origin, delta, center] of [[start.x + dx, end.x - start.x, block.gx * 40], [start.z + dz, end.z - start.z, block.gz * 40]]) {
           if (Math.abs(delta) < 0.000001) {

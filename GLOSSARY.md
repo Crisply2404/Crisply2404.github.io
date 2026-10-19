@@ -34,6 +34,15 @@ The original standard block with one spike on top, replacing the mouse cursor in
 A straight, extendable passage whose configured doors are the site's entrances.
 _Avoid_: map, hub
 
+**Playground**:
+The doorless platform connected beside the Corridor. It uses the same 40 world-unit tile and 20 world-unit player radius, and contains the Blivet and Penrose stairs objects.
+
+**Penrose loop**:
+The Playground's 14-step closed visual route. Each step is 40 world units wide and rises 10 world units. At the planar seam, a local space-layer change moves the player to the neighboring cycle while the rendered position changes by one 10-unit step, allowing continuous upward and downward travel.
+
+**Blivet**:
+A walkable standard-block illusion object in the Playground. Its black surfaces, white edges, collision and depth behavior use the MONO TOWER object model.
+
 **Door**:
 A configured entrance that names a site area and has a side, position, path, and visual treatment.
 _Avoid_: link card, portal

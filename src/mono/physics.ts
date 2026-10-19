@@ -1,7 +1,7 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import { CONFIG, PHYSICS } from './config';
-import type { BlockData } from './blocks';
+import { blockCenterY, blockHeight, type BlockData } from './blocks';
 
 export const physicsReady = RAPIER.init();
 
@@ -42,13 +42,15 @@ export class PhysicsEngine {
 
   public constructor(blocks: readonly BlockData[]) {
     for (const block of blocks) {
+      if (block.type === 'standard' && blockHeight(block) <= 0) throw new Error('Platform height must be positive');
       let descriptor: RAPIER.ColliderDesc;
       if (block.type === 'spike') {
         const hull = RAPIER.ColliderDesc.convexHull(new Float32Array([-20, -20, -20, 20, -20, -20, -20, -20, 20, 20, -20, 20, 0, 20, 0]));
         if (!hull) throw new Error('Spike hull is invalid');
         descriptor = hull;
-      } else descriptor = RAPIER.ColliderDesc.cuboid(20 - PHYSICS.sideContactTolerance, 20, 20 - PHYSICS.sideContactTolerance);
-      descriptor.setTranslation(block.gx * 40, block.gy * 40, block.gz * 40);
+      } else descriptor = RAPIER.ColliderDesc.cuboid(20 - PHYSICS.sideContactTolerance,
+        blockHeight(block) / 2, 20 - PHYSICS.sideContactTolerance);
+      descriptor.setTranslation(block.gx * 40, blockCenterY(block), block.gz * 40);
       const collider = this.world.createCollider(descriptor);
       if (block.type === 'spike') this.hazards.add(collider.handle);
     }

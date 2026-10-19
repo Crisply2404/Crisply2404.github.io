@@ -9,6 +9,10 @@ on:
         description: Private project branch or commit to build
         required: false
         type: string
+      hockey_ref:
+        description: Hockey branch or commit to build
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -63,6 +67,26 @@ jobs:
         run: |
           mkdir -p dist/chuan-zi
           cp -R chuan-zi-source/dist/. dist/chuan-zi/
+
+      - name: Checkout Hockey source
+        uses: actions/checkout@v4
+        with:
+          repository: Crisply2404/Hockey
+          ref: ${{ inputs.hockey_ref || vars.HOCKEY_REF || 'main' }}
+          path: hockey-source
+
+      - name: Build Hockey artifact
+        working-directory: hockey-source
+        env:
+          VITE_LOBBY_WS_URL: ${{ secrets.HOCKEY_LOBBY_WS_URL }}
+        run: |
+          npm ci
+          npm run build -- --base=/hockey/
+
+      - name: Place Hockey artifact
+        run: |
+          mkdir -p dist/hockey
+          cp -R hockey-source/dist/. dist/hockey/
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

@@ -6,6 +6,8 @@ dist/
 .DS_Store
 /chuan-zi/
 /chuan-zi-source/
+/Hockey/
+/hockey-source/
 presence/node_modules/
 presence/dist/
 presence/.wrangler/

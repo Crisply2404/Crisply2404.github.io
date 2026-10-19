@@ -21,6 +21,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 
   const work = page.getByRole('button', { name: 'Work', exact: true });
   assert.equal(await work.getAttribute('aria-expanded'), 'false');
   assert.equal(await page.getByRole('link', { name: '击鼓传字', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('link', { name: 'Hockey', exact: true }).count(), 0);
   await page.mouse.move(0, 0);
   await work.evaluate((button) => {
     window.workHeights = [];
@@ -43,7 +44,10 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 
   assert.ok(sizes.some(({ panel }) => panel > 1 && panel < sizes.at(-1).panel - 1), 'Work must animate its height');
   assert.ok(sizes.some(({ guide }) => guide > 1 && guide < sizes.at(-1).guide - 1), 'The guide must extend with the panel');
   const project = page.getByRole('link', { name: '击鼓传字', exact: true });
+  const hockey = page.getByRole('link', { name: 'Hockey', exact: true });
   assert.equal(await project.getAttribute('href'), '/chuan-zi/');
+  assert.equal(await hockey.getAttribute('href'), '/hockey/');
+  assert.deepEqual(await page.locator('.work-project .entry-title').allTextContents(), ['击鼓传字', 'Hockey']);
   await work.focus();
   await page.keyboard.press('Tab');
   await page.waitForTimeout(500);
@@ -55,7 +59,8 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 
   const workBounds = await work.boundingBox();
   assert.ok(Math.abs(line.x + line.width / 2 - ball.x - ball.width / 2) < 0.01, 'The guide and ball must share the same center axis');
   assert.ok(Math.abs(line.y - workBounds.y - workBounds.height / 2) < 0.01);
-  assert.ok(Math.abs(line.y + line.height - row.y - row.height / 2) < 0.01);
+  const hockeyRow = await hockey.boundingBox();
+  assert.ok(Math.abs(line.y + line.height - hockeyRow.y - hockeyRow.height / 2) < 0.01);
   const typography = await page.locator('.entry-title').evaluateAll((titles) => titles.map((title) => {
     const style = getComputedStyle(title);
     return { x: title.getBoundingClientRect().x, font: style.font, spacing: style.letterSpacing,
@@ -85,6 +90,12 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 
   assert.ok(Math.abs(axis.x + axis.width / 2 - shiftedBall.x - shiftedBall.width / 2) < 0.01,
     'Changing the shared gutter must preserve the guide and ball center axis');
   await page.locator('.entrance-list').evaluate((element) => element.style.removeProperty('--entrance-gutter'));
+  await page.keyboard.press('Tab');
+  await page.waitForTimeout(500);
+  const hockeyBall = await page.locator('.entrance-ball').boundingBox();
+  const focusedHockey = await hockey.boundingBox();
+  assert.ok(Math.abs(hockeyBall.y + hockeyBall.height / 2 - focusedHockey.y - focusedHockey.height / 2) < 1,
+    'The ball must follow the second project');
   assert.ok(await page.locator('.page-letter').evaluateAll((letters) => letters.filter((letter) => '击鼓传字'.includes(letter.textContent)).every((letter) => !letter.hidden)));
   await page.getByRole('button', { name: 'Switch to game view' }).click();
   await page.waitForSelector('.scene-canvas');
@@ -96,6 +107,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 
   await page.waitForTimeout(450);
   assert.equal(await page.locator('.work-panel').evaluate((panel) => panel.getBoundingClientRect().height), 0);
   assert.equal(await guide.evaluate((element) => getComputedStyle(element).opacity), '0');
+  assert.equal(await hockey.count(), 0);
   assert.ok(await page.locator('.page-letter').evaluateAll((letters) => letters.filter((letter) => '击鼓传字'.includes(letter.textContent)).every((letter) => letter.hidden)));
   assert.equal(await page.locator('.site-title').getAttribute('href'), '/');
   assert.deepEqual(errors, []);

@@ -16,6 +16,7 @@
     "test:list-play": "node tests/list-play-check.mjs",
     "test:list-startup": "node tests/list-startup-check.mjs",
     "test:work-profile": "node tests/work-profile-check.mjs",
+    "test:hockey": "node tests/hockey-check.mjs",
     "test:cursor-strike": "node tests/cursor-strike-check.mjs",
     "test:page-play": "node tests/page-play-check.mjs",
     "test:mobile-page": "node tests/mobile-page-check.mjs",

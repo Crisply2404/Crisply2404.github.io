@@ -15,7 +15,7 @@ export default defineConfig({
   server: {
     port: 5174,
     watch: {
-      ignored: ['**/chuan-zi/**', '**/presence/**', '**/.work/**'],
+      ignored: ['**/chuan-zi/**', '**/Hockey/**', '**/presence/**', '**/.work/**'],
     },
   },
 });

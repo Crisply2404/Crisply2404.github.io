@@ -18,6 +18,14 @@ The nested local `chuan-zi/` folder has its own Git repository. The main site's 
 
 The workflow listens for pushes to this site's `main` branch and manual runs. A push to the private project does not trigger this workflow. Publishing a newly selected private commit requires updating `CHUAN_ZI_REF` and running `deploy.yml`, or providing the commit through its `chuan_zi_ref` input.
 
+## Hockey
+
+Work links to Hockey at `/hockey/`. The local `Hockey/` directory is a separate clone of `Crisply2404/Hockey`, excluded by the main repository's `.gitignore`, VS Code repository scanning and Vite file watching. The integration preserves its source files.
+
+Pages checks out the public repository into `hockey-source/`, installs its locked dependencies, builds with `npm run build -- --base=/hockey/`, and copies only `dist/` into the site's `dist/hockey/`. Builds use `main` by default. Set the `HOCKEY_REF` repository variable to select a revision, or supply `hockey_ref` when running `deploy.yml` manually. Hockey repository pushes become available on the next main site deployment.
+
+The existing game provides a local mode. Its online lobby needs a separate Worker, configured through the main repository's `HOCKEY_LOBBY_WS_URL` secret, which the workflow passes to Hockey as `VITE_LOBBY_WS_URL`. The initial integration publishes the current frontend; lobby service deployment belongs to Hockey's development.
+
 ## Presence relay
 
 The `presence/` directory deploys a Cloudflare Worker and one SQLite-backed Durable Object. The public `/lobby` endpoint accepts WebSocket connections from the site. Hibernation keeps idle connections open. Each connection attachment stores that visitor's latest position; closing it removes the visitor. The service exposes `/health` and relays `snapshot`, `state`, and `leave` messages without writing position history.

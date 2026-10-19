@@ -3,6 +3,7 @@ import type { CollectionKind } from './content';
 import { entriesFor } from './content';
 import { doors } from './sceneConfig';
 import { githubLink } from './site-profile';
+import { workProjects } from './site-projects';
 
 function header(): string {
   return `
@@ -86,9 +87,9 @@ export function renderListPage(): string {
           </button>
           <div class="work-panel" id="work-projects" inert>
             <div class="work-items">
-              ${doors.filter((door) => door.group === 'work').map((door) => `
-                <a class="entry-row work-project" href="${door.path}">
-                  <span class="entry-title">${door.title}</span>
+              ${workProjects.map((project) => `
+                <a class="entry-row work-project" href="${project.path}">
+                  <span class="entry-title">${project.title}</span>
                 </a>
               `).join('')}
             </div>

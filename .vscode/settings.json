@@ -1,7 +1,8 @@
 {
   "git.ignoredRepositories": [
-    "chuan-zi"
+    "chuan-zi",
+    "Hockey"
   ],
-  "git.repositoryScanIgnoredFolders": ["node_modules", "chuan-zi"],
+  "git.repositoryScanIgnoredFolders": ["node_modules", "chuan-zi", "Hockey"],
   "git.repositoryScanMaxDepth": 0
 }

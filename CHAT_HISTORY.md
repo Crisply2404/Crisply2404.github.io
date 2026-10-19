@@ -1022,3 +1022,15 @@ Q3 状态保存：是否让每个 URL 保存自己的球体与字母位置，滚
 纵向引导线已与球心共用同一条轴线，球体会遮住身后的线段。各个入口保持统一字号与间距，引导线随展开和收回平滑伸缩。
 
 已发布，桌面与手机检查通过。
+
+### 用户消息 · 2026-10-19 Asia/Shanghai
+
+我希望能把[https://github.com/Crisply2404/Hockey](https://github.com/Crisply2404/Hockey)也接到我们的项目，这项目我们之后会自己完善，不过我们先给它一个入口。你可以clone到我们的工作目录然后排除在我们个人网站的git之外。然后这个也是放work里面的。
+
+### 助手最终回复 · 2026-10-19 Asia/Shanghai
+
+Work 已加入 [Hockey](https://crisply2404.github.io/hockey/)，已发布。
+
+项目克隆在 [Hockey](/Users/hco/Documents/Crisply2404.github.io/Hockey)，已被主站 Git 忽略。主站只发布构建产物。
+
+桌面与手机检查通过。本地模式可用，联机服务尚未配置。

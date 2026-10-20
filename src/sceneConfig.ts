@@ -1,9 +1,8 @@
 import * as THREE from 'three';
 import type { DoorConfig } from './types';
-import { blockCenterY, type BlockData } from './mono/blocks';
+import type { BlockData } from './mono/blocks';
 import { CONFIG } from './mono/config';
-import { penroseCycleHeight, penroseSteps, penroseStepRise } from './penrose-config';
-export { penroseSteps } from './penrose-config';
+import { penroseFloorBlocks } from './mono/penrose';
 
 export const blockSize = CONFIG.blockSize;
 export const playerRadius = CONFIG.playerRadius;
@@ -13,11 +12,10 @@ export const corridorFloorY = 20;
 export const corridorStartZ = 100;
 
 export const playgroundPlatformBlocks = (): BlockData[] => {
-  const stairCells = new Set(penroseSteps.map((step) => `${step.gx}:${step.gz}`));
   const blocks: BlockData[] = [];
-  for (let gx = 3; gx <= 25; gx += 1) {
-    for (let gz = -5; gz <= 4; gz += 1) {
-      if (!stairCells.has(`${gx}:${gz}`)) {
+  for (let gx = 3; gx <= 42; gx += 1) {
+    for (let gz = -16; gz <= 8; gz += 1) {
+      if (!(gx >= 11 && gx <= 15 && gz >= -2 && gz <= 2) && !(gx === 4 && gz === -8)) {
         blocks.push({ gx, gy: 0, gz, type: 'standard' });
       }
     }
@@ -25,29 +23,12 @@ export const playgroundPlatformBlocks = (): BlockData[] => {
   return blocks;
 };
 
-export const blivetBlocks = (): BlockData[] => {
-  const positions = new Set<string>();
-  const add = (gx: number, gz: number): void => { positions.add(`${gx + 4}:1:${gz}`); };
-  for (const gz of [-3, 0, 3]) for (let gx = 13; gx <= 16; gx += 1) add(gx, gz);
-  for (let gz = -3; gz <= 3; gz += 1) add(16, gz);
-  for (const gz of [-2, 2]) for (let gx = 16; gx <= 21; gx += 1) add(gx, gz);
-  for (let gx = 17; gx <= 18; gx += 1) for (const gz of [-1, 0, 1]) add(gx, gz);
-  return [...positions].map((key) => {
-    const [gx, gy, gz] = key.split(':').map(Number);
-    return { gx, gy, gz, type: 'standard' as const };
-  });
-};
-
-export const penroseBlocks = (cycles = 0): BlockData[] => {
-  const blocks: BlockData[] = [];
-  for (let cycle = -cycles; cycle <= cycles; cycle += 1) {
-    for (const { gx, gy, gz } of penroseSteps) {
-      blocks.push({ gx, gy: cycle * 100, centerY: 15 + gy * penroseStepRise + cycle * penroseCycleHeight,
-        height: 10, gz, type: 'standard' });
-    }
-  }
-  return blocks;
-};
+export const blivetApproachBlocks = (): BlockData[] => [
+  { gx: 9, gy: 1, gz: -2, centerY: 30, height: 20, type: 'standard' },
+  { gx: 10, gy: 1, gz: -2, centerY: 48, height: 16, type: 'standard' },
+  { gx: 25, gy: 1, gz: -1, centerY: 30, height: 20, type: 'standard' },
+  { gx: 25, gy: 1, gz: -2, type: 'standard' },
+];
 
 export const doors: DoorConfig[] = [
   { id: 'notes', title: 'Notes', path: '/notes/', side: 'left', z: -160, accent: '#ffffff',
@@ -79,38 +60,16 @@ export function corridorBlocks(): BlockData[] {
   return blocks;
 }
 
-export const playgroundBaseBlocks = (): BlockData[] => [
-  ...playgroundPlatformBlocks(),
-  ...blivetBlocks(),
-];
-
-export function playgroundBlocks(loopCopies = 2): BlockData[] {
-  return [...playgroundBaseBlocks(), ...penroseBlocks(loopCopies)];
-}
-
-export function sceneBlocks(cycle = 0, loopCopies = 4): BlockData[] {
-  const shift = (blocks: readonly BlockData[]): BlockData[] => blocks.map((block) => {
-    if (!cycle) return block;
-    return { ...block, gy: block.gy - cycle * 100, centerY: blockCenterY(block) - cycle * penroseCycleHeight };
-  });
-  return [...shift(corridorBlocks()), ...shift(playgroundBaseBlocks()), ...penroseBlocks(loopCopies)];
+export function sceneBlocks(): BlockData[] {
+  return [...corridorBlocks(), ...playgroundPlatformBlocks(), ...penroseFloorBlocks(), ...blivetApproachBlocks()];
 }
 
 
-export function penroseJumpConnections(cycles = 0): { from: THREE.Vector3; to: THREE.Vector3 }[] {
-  const connections: { from: THREE.Vector3; to: THREE.Vector3 }[] = [];
-  for (let cycle = -cycles; cycle <= cycles; cycle += 1) {
-    for (let index = 0; index < penroseSteps.length; index += 1) {
-      const from = penroseSteps[index];
-      const nextCycle = index === penroseSteps.length - 1 ? cycle + 1 : cycle;
-      const to = penroseSteps[(index + 1) % penroseSteps.length];
-      const start = new THREE.Vector3(from.gx * blockSize, from.gy * penroseStepRise + cycle * penroseCycleHeight + playerRadius + 20.02,
-        from.gz * blockSize);
-      const end = new THREE.Vector3(to.gx * blockSize, to.gy * penroseStepRise + nextCycle * penroseCycleHeight + playerRadius + 20.02,
-        to.gz * blockSize);
-      connections.push({ from: start, to: end }, { from: end, to: start });
-    }
-  }
-  return connections;
+export function playgroundJumpConnections(): { from: THREE.Vector3; to: THREE.Vector3 }[] {
+  const points = [new THREE.Vector3(1000, 40.02, 0), new THREE.Vector3(1000, 60.02, -40), new THREE.Vector3(1000, 80.02, -80)];
+  const stairs = [new THREE.Vector3(320, 40.02, -80), new THREE.Vector3(360, 60.02, -80),
+    new THREE.Vector3(400, 76.02, -80), new THREE.Vector3(440, 92.02, -80)];
+  return [points, stairs].flatMap((route) => route.slice(1).flatMap((point, index) =>
+    [{ from: route[index], to: point }, { from: point, to: route[index] }]));
 }
 

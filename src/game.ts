@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { PresenceClient } from './presence';
 import {
   corridorBlocks, corridorEndZ, doors, doorPosition, fixedStep, playgroundPlatformBlocks,
-  penroseBlocks, penroseJumpConnections, playerRadius, sceneBlocks, spawn,
+  blivetApproachBlocks, playgroundJumpConnections, playerRadius, sceneBlocks, spawn,
 } from './sceneConfig';
 import type { AvatarState, DoorConfig } from './types';
 import { CONFIG, VIEWPORT, controlModeOrder, movementDirection, type WasdOrientation } from './mono/config';
@@ -19,10 +19,11 @@ import { CanvasNavigation, type ViewGesture } from './mono/canvas-navigation';
 import { SpeechBubbles } from './speech';
 import { speechRange } from './presence-rules';
 import { PenroseLoop } from './mono/penrose';
-import { createBlivet } from './mono/playground';
+import { PlaygroundVisual } from './mono/playground';
+import { BlivetSpace, blivetEntry, blivetLocalEntry } from './mono/blivet';
 
 type KeyName = 'w' | 'a' | 's' | 'd' | 'q' | 'e' | 'r' | ' ';
-interface RemoteAvatar { target: AvatarState; object: THREE.Group }
+interface RemoteAvatar { target: AvatarState; object: THREE.Group; position: THREE.Vector3 }
 
 export class GameScene {
   private readonly root: HTMLElement;
@@ -39,14 +40,17 @@ export class GameScene {
   private readonly presence: PresenceClient;
   private readonly speech: SpeechBubbles;
   private readonly penrose = new PenroseLoop();
+  private readonly blivet = new BlivetSpace();
+  private inBlivet = false;
   private blocks = sceneBlocks();
-  private navigation = new SafetyNavigationGraph(this.blocks, penroseJumpConnections());
+  private navigation = new SafetyNavigationGraph(this.blocks, playgroundJumpConnections());
   private physics = new PhysicsEngine(this.blocks);
   private readonly player = new PlayerState();
   private ripple = new NavigationRipple(this.blocks);
+  private rippleSurface: { position: THREE.Vector3; space: 'penrose' | 'blivet' } | undefined;
   private floorObjects!: THREE.Group;
   private playgroundObjects!: THREE.Group;
-  private playgroundStairs!: THREE.Group;
+  private playgroundVisual!: PlaygroundVisual;
   private readonly corridorRoot = new THREE.Group();
   private readonly playgroundRoot = new THREE.Group();
   private readonly mobile: MobileControls;
@@ -66,7 +70,7 @@ export class GameScene {
   private automaticJump = false;
   private routePending = false;
   private orientation: WasdOrientation = 2;
-  private path: { position: THREE.Vector3; jump: boolean }[] = [];
+  private path: { position: THREE.Vector3; jump: boolean; space?: 'blivet' }[] = [];
   private destroyed = false;
 
   public constructor(root: HTMLElement, onRoute: (path: string) => void) {
@@ -100,6 +104,7 @@ export class GameScene {
   public destroy(): void {
     this.destroyed = true; this.listenerAbort.abort(); this.presence.destroy(); window.cancelAnimationFrame(this.animationFrame);
     this.mobile.dispose(); this.canvasNavigation.dispose(); this.controlPreview.dispose(); this.controlTutorial.dispose(); this.physics.dispose();
+    this.blivet.dispose();
     this.speech.destroy();
     this.scene.traverse((object) => {
       if (object instanceof THREE.Mesh) {
@@ -121,13 +126,14 @@ export class GameScene {
     this.floorObjects = this.visualBuilder.createLevelMesh(corridorBlocks());
     this.corridorRoot.name = 'CorridorRoot';
     this.corridorRoot.add(this.floorObjects);
-    this.playgroundObjects = this.visualBuilder.createLevelMesh(playgroundPlatformBlocks());
+    this.playgroundObjects = this.visualBuilder.createLevelMesh([...playgroundPlatformBlocks(), ...blivetApproachBlocks()]);
     this.playgroundObjects.userData.playground = true;
-    this.playgroundStairs = this.visualBuilder.createLevelMesh(penroseBlocks(4));
-    this.playgroundStairs.name = 'PenroseStairs';
+    this.playgroundVisual = new PlaygroundVisual(this.visualBuilder, this.penrose, this.blivet);
     this.playgroundRoot.name = 'PlaygroundRoot';
     this.playgroundRoot.userData.playground = true;
-    this.playgroundRoot.add(this.playgroundObjects, createBlivet(this.visualBuilder), this.playgroundStairs);
+    this.playgroundRoot.add(this.playgroundObjects, this.playgroundVisual);
+    this.ripple.addSurface(this.playgroundVisual.stairs.geometry);
+    this.ripple.addSurface(this.playgroundVisual.blivet.geometry);
     this.scene.add(this.corridorRoot, this.ripple, this.playgroundRoot);
     for (const door of doors) this.addDoor(door);
     const exit = this.visualBuilder.createSiteGate(new THREE.Vector3(0, 40.02, corridorEndZ + 20));
@@ -182,21 +188,41 @@ export class GameScene {
     return raycaster;
   }
 
-  private isPlaygroundPosition(position: THREE.Vector3): boolean {
-    return position.x >= 100 && position.x <= 1060 && position.z >= -240 && position.z <= 200;
-  }
-
   private worldPlayerPosition(): THREE.Vector3 {
-    return this.isPlaygroundPosition(this.player.pos) ? this.penrose.renderPosition(this.player.pos) : this.player.pos.clone();
+    return this.inBlivet ? this.blivet.renderPosition(this.player.pos, this.cameraAngle)
+      : this.penrose.renderPosition(this.player.pos, this.cameraAngle);
   }
 
-  private localizeWorldPoint(point: THREE.Vector3): THREE.Vector3 {
-    return this.isPlaygroundPosition(point) ? point.clone().sub(this.penrose.renderOffset) : point.clone();
+  private networkPosition(): THREE.Vector3 {
+    return this.inBlivet ? this.player.pos.clone().add(blivetEntry).sub(blivetLocalEntry) : this.player.pos.clone();
   }
 
-  private updatePlaygroundCopies(): void {
-    this.playgroundRoot.position.y = this.penrose.renderOffset.y;
-    this.playgroundStairs.position.y = 0;
+  private remotePosition(avatar: AvatarState): THREE.Vector3 {
+    const point = new THREE.Vector3(avatar.x, avatar.y, avatar.z);
+    return avatar.space === 'blivet' ? point.sub(blivetEntry).add(blivetLocalEntry) : point;
+  }
+
+  private setBlivet(inside: boolean): void {
+    if (inside === this.inBlivet) return;
+    if (inside) this.player.place(blivetLocalEntry);
+    else this.player.place(this.blivet.renderPosition(this.player.pos, this.cameraAngle));
+    this.inBlivet = inside;
+  }
+
+  private planNavigation(target: THREE.Vector3, space?: 'blivet'): typeof this.path {
+    if (space === 'blivet') {
+      const start = this.inBlivet ? this.player.pos : blivetLocalEntry;
+      const local = this.blivet.path(start, target);
+      if (!local.length || !this.blivet.verifyPath(start, local)) return [];
+      const approach = this.inBlivet ? [] : this.navigation.findPath(this.player.pos, blivetEntry);
+      if (!this.inBlivet && !approach.length) return [];
+      return [...approach, ...local.map((position) => ({ position, jump: false, space: 'blivet' as const }))];
+    }
+    if (!this.inBlivet) return this.navigation.findPath(this.player.pos, target);
+    const local = this.blivet.path(this.player.pos, blivetLocalEntry);
+    const onward = this.navigation.findPath(blivetEntry, target);
+    if (!onward.length || !this.blivet.verifyPath(this.player.pos, local)) return [];
+    return [...local.map((position) => ({ position, jump: false, space: 'blivet' as const })), ...onward];
   }
 
   private readonly navigateToPoint = (point: THREE.Vector2): void => {
@@ -213,17 +239,20 @@ export class GameScene {
     const surfaces = [
       this.floorObjects.getObjectByName('BlackBlocks')!,
       this.playgroundObjects.getObjectByName('BlackBlocks')!,
-      ...this.playgroundStairs.children.map((child) => child.getObjectByName('BlackBlocks')).filter((mesh): mesh is THREE.Object3D => Boolean(mesh)),
+      this.playgroundVisual.stairs, this.playgroundVisual.blivet,
     ];
     const hit = raycaster.intersectObjects(surfaces, false)[0];
     if (!hit || !hit.face || hit.face.normal.y < 0.99) return;
-    const target = this.localizeWorldPoint(hit.point);
-    target.y += playerRadius + 0.02;
-    const path = this.navigation.findPath(this.player.pos.clone(), target);
+    const isBlivet = hit.object === this.playgroundVisual.blivet;
+    const target = isBlivet ? this.blivet.inverseSurface(hit.point, this.cameraAngle)
+      : hit.object === this.playgroundVisual.stairs ? this.penrose.inverseSurface(hit.point, this.cameraAngle)
+        : hit.point.clone().add(new THREE.Vector3(0, playerRadius + 0.02, 0));
+    if (!target) return;
+    const path = this.planNavigation(target, isBlivet ? 'blivet' : undefined);
     if (path.length) {
       this.path = path;
-      const playgroundHit = Boolean(this.playgroundRoot.getObjectById(hit.object.id));
-      this.ripple.position.y = playgroundHit ? this.penrose.renderOffset.y : 0;
+      this.rippleSurface = isBlivet ? { position: target, space: 'blivet' }
+        : hit.object === this.playgroundVisual.stairs ? { position: target, space: 'penrose' } : undefined;
       this.ripple.show(hit.point);
     }
   };
@@ -277,7 +306,10 @@ export class GameScene {
     let input = direct;
     let automatic = false;
     if (!input.lengthSq() && this.path.length) {
-      const next = this.path[0]; const delta = next.position.clone().sub(this.player.pos); delta.y = 0;
+      const next = this.path[0];
+      if (next.space === 'blivet' && !this.inBlivet) this.setBlivet(true);
+      if (!next.space && this.inBlivet) this.setBlivet(false);
+      const delta = next.position.clone().sub(this.player.pos); delta.y = 0;
       if (next.jump && this.player.grounded && !this.automaticJump) {
         this.player.vel.x = this.player.vel.z = 0;
         this.player.jumpBuffer = 8;
@@ -298,34 +330,37 @@ export class GameScene {
         force.set(x, 0, z).normalize().multiplyScalar(CONFIG.moveSpeed);
       }
     }
-    this.penrose.wrapIfNeeded(this.player, force);
-    if (!this.physics.step(this.player, force) || this.player.pos.y < spawn.y - 300) this.resetPlayer();
-    this.updatePlaygroundCopies();
+    if (!this.inBlivet && this.player.grounded && this.player.pos.distanceTo(blivetEntry) < 5
+      && this.blivet.worldForce(force, this.cameraAngle).x > 0.1) this.setBlivet(true);
+    const engine = this.inBlivet ? this.blivet.physics : this.physics;
+    const applied = this.inBlivet && !automatic ? this.blivet.worldForce(force, this.cameraAngle) : force;
+    if (!engine.step(this.player, applied) || this.player.pos.y < spawn.y - 300) this.resetPlayer();
+    if (this.inBlivet && ((this.player.pos.x < -8 && this.player.pos.z < -60) || this.player.pos.y < 45)) this.setBlivet(false);
+    if (!this.inBlivet) this.penrose.track(this.player.pos);
     this.wasMoving = input.lengthSq() > 0; this.localAvatar.position.copy(this.worldPlayerPosition());
     for (const remote of this.remoteAvatars.values()) {
-      remote.object.position.lerp(new THREE.Vector3(remote.target.x, remote.target.y, remote.target.z), 0.22);
+      remote.position.lerp(this.remotePosition(remote.target), 0.22);
     }
     this.resolveAvatarOverlap();
     if (!this.speech.editing) this.checkDestinations();
     const rounded = (value: number): number => Math.round(value * 10) / 10;
-    const worldPosition = this.worldPlayerPosition();
+    const worldPosition = this.networkPosition();
     this.presence.publish({ x: rounded(worldPosition.x), y: rounded(worldPosition.y), z: rounded(worldPosition.z),
-      vx: rounded(this.player.vel.x), vy: rounded(this.player.vel.y), vz: rounded(this.player.vel.z) });
+      vx: rounded(this.player.vel.x), vy: rounded(this.player.vel.y), vz: rounded(this.player.vel.z),
+      space: this.inBlivet ? 'blivet' : undefined });
   }
 
   private resolveAvatarOverlap(): void {
     for (const remote of this.remoteAvatars.values()) {
-      const remotePosition = new THREE.Vector3(remote.target.x, remote.target.y, remote.target.z);
-      const localPosition = this.worldPlayerPosition();
+      if (Boolean(remote.target.space === 'blivet') !== this.inBlivet) continue;
+      const remotePosition = this.remotePosition(remote.target);
+      const localPosition = this.player.pos;
       const delta = localPosition.clone().sub(remotePosition); const distance = delta.length();
       if (distance < playerRadius * 2) {
         if (distance < 0.01) delta.set(this.presence.identity < remote.target.id ? -1 : 1, 0, 0); else delta.divideScalar(distance);
         const candidate = remotePosition.clone().addScaledVector(delta, playerRadius * 2 + 0.02);
-        if (candidate.x >= -80 && candidate.x <= 1060 && candidate.z >= corridorEndZ + 20 && candidate.z <= 200) {
-          const localCandidate = this.localizeWorldPoint(candidate);
-          this.player.pos.x = localCandidate.x;
-          this.player.pos.y = localCandidate.y;
-          this.player.pos.z = localCandidate.z;
+        if (this.inBlivet ? this.blivet.path(this.player.pos, candidate).length > 0 : this.navigation.isSafe(candidate)) {
+          this.player.pos.copy(candidate);
           if (this.player.vel.dot(delta) < 0) this.player.vel.addScaledVector(delta, -this.player.vel.dot(delta));
         }
       }
@@ -334,7 +369,7 @@ export class GameScene {
   }
 
   private atDestination(position: THREE.Vector3): boolean {
-    return this.penrose.cycle === 0 && this.player.grounded && Math.abs(this.player.pos.y - position.y) < 4 && Math.hypot(this.player.pos.x - position.x, this.player.pos.z - position.z) < 24;
+    return !this.inBlivet && this.player.grounded && Math.abs(this.player.pos.y - position.y) < 4 && Math.hypot(this.player.pos.x - position.x, this.player.pos.z - position.z) < 24;
   }
 
   private checkDestinations(): void {
@@ -351,10 +386,19 @@ export class GameScene {
 
   private setJump(pressed: boolean): void { if (this.routePending) return; this.player.jump(pressed, this.jumpPressed); this.jumpPressed = pressed; }
   private resetInput(): void { this.keys.clear(); this.mobile?.reset(); this.canvasNavigation?.reset(); this.jumpPressed = this.wasMoving = this.automaticJump = false; this.player.jumpBuffer = 0; this.path = []; }
-  private resetPlayer(): void { this.penrose.reset(); this.player.place(spawn); this.updatePlaygroundCopies(); this.resetInput(); }
+  private resetPlayer(): void { this.inBlivet = false; this.penrose.reset(); this.player.place(spawn); this.resetInput(); }
 
   private render(delta: number): void {
     this.cameraAngle = THREE.MathUtils.damp(this.cameraAngle, this.targetCameraAngle, 18, delta);
+    this.playgroundVisual.update(this.cameraAngle);
+    if (this.ripple.visible && this.rippleSurface) {
+      const { position, space } = this.rippleSurface;
+      this.ripple.moveCenter(space === 'blivet' ? this.blivet.artToWorld(this.blivet.floorArt(position), this.cameraAngle, 59.95)
+        : this.penrose.surfacePosition(position, this.cameraAngle));
+    }
+    this.localAvatar.position.copy(this.worldPlayerPosition());
+    for (const remote of this.remoteAvatars.values()) remote.object.position.copy(remote.target.space === 'blivet'
+      ? this.blivet.renderPosition(remote.position, this.cameraAngle) : this.penrose.renderPosition(remote.position, this.cameraAngle));
     const center = this.worldPlayerPosition().add(this.viewOffset);
     this.camera.position.set(center.x + Math.sin(this.cameraAngle) * VIEWPORT.cameraDistance, center.y + VIEWPORT.cameraHeight, center.z + Math.cos(this.cameraAngle) * VIEWPORT.cameraDistance);
     this.camera.lookAt(center); this.localAvatar.quaternion.copy(this.camera.quaternion); for (const remote of this.remoteAvatars.values()) remote.object.quaternion.copy(this.camera.quaternion);
@@ -379,7 +423,7 @@ export class GameScene {
     if (this.speech.editing) localMessage.y -= this.speech.editorHeight + 8;
     positions.set(this.presence.identity, localMessage);
     for (const [id, remote] of this.remoteAvatars) {
-      if (this.worldPlayerPosition().distanceTo(new THREE.Vector3(remote.target.x, remote.target.y, remote.target.z)) <= speechRange) {
+      if (this.networkPosition().distanceTo(new THREE.Vector3(remote.target.x, remote.target.y, remote.target.z)) <= speechRange) {
         positions.set(id, project(remote.object.position));
       }
     }
@@ -387,7 +431,16 @@ export class GameScene {
   }
 
   private receiveAvatars(avatars: Map<string, AvatarState>): void {
-    for (const [id, avatar] of avatars) { let remote = this.remoteAvatars.get(id); if (!remote) { remote = { target: avatar, object: this.visualBuilder.createPlayerMesh() }; remote.object.position.set(avatar.x, avatar.y, avatar.z); this.remoteAvatars.set(id, remote); this.scene.add(remote.object); } else remote.target = avatar; }
+    for (const [id, avatar] of avatars) {
+      let remote = this.remoteAvatars.get(id);
+      if (!remote) {
+        remote = { target: avatar, object: this.visualBuilder.createPlayerMesh(), position: this.remotePosition(avatar) };
+        this.remoteAvatars.set(id, remote); this.scene.add(remote.object);
+      } else {
+        if (remote.target.space !== avatar.space) remote.position.copy(this.remotePosition(avatar));
+        remote.target = avatar;
+      }
+    }
     for (const [id, remote] of this.remoteAvatars) if (!avatars.has(id)) {
       this.speech.remove(id);
       this.scene.remove(remote.object);

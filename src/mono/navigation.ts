@@ -34,6 +34,17 @@ export class SafetyNavigationGraph {
       const position = new THREE.Vector3(block.gx * 40, blockTopY(block) + 20.02, block.gz * 40);
       this.nodes.set(position.toArray().join(':'), position);
     }
+    const surfacePositions = new Set(this.nodes.keys());
+    const endpoints = jumps.flatMap((connection) => [connection.from, connection.to]);
+    for (const [id, position] of this.nodes) {
+      if (endpoints.some((endpoint) => endpoint.distanceTo(position) < 0.1)) continue;
+      const has = (x: number, z: number): boolean => surfacePositions.has(position.clone().add(new THREE.Vector3(x * 40, 0, z * 40)).toArray().join(':'));
+      const left = has(-1, 0), right = has(1, 0), up = has(0, -1), down = has(0, 1);
+      const corner = left !== right && up !== down;
+      const concave = (left && up && !has(-1, -1)) || (left && down && !has(-1, 1))
+        || (right && up && !has(1, -1)) || (right && down && !has(1, 1));
+      if (!corner && !concave) this.nodes.delete(id);
+    }
     for (const [id, position] of this.nodes) {
       if (this.isSafe(position)) this.edges.set(id, []);
       else this.nodes.delete(id);

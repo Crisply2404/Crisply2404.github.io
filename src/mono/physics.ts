@@ -40,7 +40,12 @@ export class PhysicsEngine {
   private readonly hazards = new Set<number>();
   private readonly rotation = { x: 0, y: 0, z: 0, w: 1 };
 
-  public constructor(blocks: readonly BlockData[]) {
+  public constructor(blocks: readonly BlockData[], hulls: readonly Float32Array[] = []) {
+    for (const vertices of hulls) {
+      const descriptor = RAPIER.ColliderDesc.convexHull(vertices);
+      if (!descriptor) throw new Error('Surface hull is invalid');
+      this.world.createCollider(descriptor);
+    }
     for (const block of blocks) {
       if (block.type === 'standard' && blockHeight(block) <= 0) throw new Error('Platform height must be positive');
       let descriptor: RAPIER.ColliderDesc;
@@ -104,6 +109,16 @@ export class PhysicsEngine {
       if (player.vel.dot(normal) < 0) player.vel.addScaledVector(normal, -player.vel.dot(normal));
       motion.multiplyScalar(1 - hit.time_of_impact);
       if (motion.dot(normal) < 0) motion.addScaledVector(normal, -motion.dot(normal));
+    }
+    if (!grounded && player.vel.y <= 0) {
+      const ray = new RAPIER.Ray(player.pos, { x: 0, y: -1, z: 0 });
+      const support = this.world.castRayAndGetNormal(ray, CONFIG.playerRadius + PHYSICS.safeMargin, true);
+      if (support && support.normal.y > 0.999 && support.timeOfImpact > CONFIG.playerRadius - CONFIG.gravity - PHYSICS.safeMargin) {
+        if (this.hazards.has(support.collider.handle)) return false;
+        player.pos.y += CONFIG.playerRadius + PHYSICS.safeMargin - support.timeOfImpact;
+        player.vel.y = 0; grounded = true;
+        this.contactPosition.copy(player.pos).add(new THREE.Vector3(0, -CONFIG.playerRadius, 0));
+      }
     }
     player.grounded = grounded;
     if (grounded) player.coyoteTime = PHYSICS.coyoteFrames;

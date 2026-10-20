@@ -11,7 +11,8 @@ const position = z.number().min(-100000).max(100000);
 const velocity = z.number().min(-100).max(100);
 const stateSchema = z.object({
   type: z.literal('state'),
-  avatar: z.object({ x: position, y: position, z: position, vx: velocity, vy: velocity, vz: velocity }),
+  avatar: z.object({ x: position, y: position, z: position, vx: velocity, vy: velocity, vz: velocity,
+    space: z.literal('blivet').optional() }),
 });
 const joinSchema = z.object({ type: z.literal('join'), id: z.uuid() });
 const speechSchema = z.object({ type: z.literal('speech'), text: z.string().trim().min(1).max(speechCharacterLimit) });
@@ -22,7 +23,7 @@ interface Connection { id?: string; avatar?: Avatar; tokens: number; tokenUpdate
 export class PresenceLobby extends DurableObject<Env> {
   public fetch(request: Request): Response {
     if (new URL(request.url).pathname === '/health') {
-      return Response.json({ status: 'ok', visitors: this.avatars().length });
+      return Response.json({ status: 'ok', visitors: this.avatars().length, protocolVersion: 2 });
     }
     if (this.ctx.getWebSockets().length >= 100) return new Response('Lobby is full', { status: 503 });
     const pair = new WebSocketPair();

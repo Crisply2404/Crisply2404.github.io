@@ -48,6 +48,14 @@ export class NavigationRipple extends THREE.Group {
     this.elapsed = 0; this.visible = true;
   }
 
+  public addSurface(geometry: THREE.BufferGeometry): void {
+    const mesh = new THREE.InstancedMesh(geometry, this.material, 1);
+    mesh.setMatrixAt(0, new THREE.Matrix4()); mesh.frustumCulled = false;
+    this.add(mesh);
+  }
+
+  public moveCenter(position: THREE.Vector3): void { this.material.uniforms.center.value.copy(position); }
+
   public update(delta: number): void {
     this.elapsed += delta;
     this.material.uniforms.progress.value = Math.min(1, this.elapsed / 0.65);

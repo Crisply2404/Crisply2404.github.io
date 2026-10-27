@@ -10,6 +10,10 @@ Set these repository secrets:
 - `VITE_PRESENCE_WS_URL`: the public WSS endpoint for the personal site presence relay.
 - `CHUAN_ZI_WS_URL`: the public WSS endpoint used by the `chuan-zi` build.
 
+Markdown articles live in `src/content/notes/` and `src/content/essays/`. The first heading supplies the article title, and the filename supplies its URL slug. The Pages build emits an `index.html` for each article address so direct visits and refreshes return HTTP 200. Public article images live in `public/media/notes/` and use `/media/notes/` URLs.
+
+`local-drafts/` contains local Markdown awaiting publication and its `assets/` directory. Git ignores the entire directory. It is outside the content directories and the public asset directory, so it does not enter the site build. Imported originals are preserved separately under the ignored `.work/windows-desktop-originals/` directory.
+
 The workflow checks out the private source into its temporary build workspace, runs its build, and copies only `dist/` into the Pages artifact at `/chuan-zi/`.
 
 The nested local `chuan-zi/` folder has its own Git repository. The main site's `.gitignore` excludes its files; `.vscode/settings.json` tells this workspace to ignore the nested repository in Source Control. Pages builds use the committed private revision selected by the `CHUAN_ZI_REF` repository variable. Manual workflow runs can select another private branch or commit through the `chuan_zi_ref` input. Local updates must be committed and pushed to that private repository before Actions can build them.

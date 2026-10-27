@@ -5,10 +5,7 @@ import { PhysicsEngine, PlayerState, physicsReady } from '../src/mono/physics';
 import { buildEdges, type BlockData } from '../src/mono/blocks';
 import { CONFIG, movementDirection } from '../src/mono/config';
 import { SafetyNavigationGraph, navigationForce } from '../src/mono/navigation';
-import { corridorBlocks, doorPosition, doors, playgroundJumpConnections, sceneBlocks, spawn } from '../src/sceneConfig';
-import { penroseBaseY, penroseCycleHeight, penroseStepCount } from '../src/penrose-config';
-import { PenroseLoop, penroseFaces, stairPoint, stairRay } from '../src/mono/penrose';
-import { BlivetSpace, blivetLocalEntry, blivetRails } from '../src/mono/blivet';
+import { corridorBlocks, spawn, doors, doorPosition } from '../src/sceneConfig';
 
 await physicsReady;
 const zero = new THREE.Vector3();
@@ -137,84 +134,4 @@ test('跳跃连接通过真实物理路径检查，危险节点不进入导航�
   assert.throws(() => new SafetyNavigationGraph([{ ...blocks[0] }, { ...blocks[1], gx: 20 }], [{ from, to: new THREE.Vector3(800, 40.02, 0) }]), /no safe physical trajectory/);
   const hazardous = new SafetyNavigationGraph([...blocks, { gx: 0, gy: 1, gz: 0, type: 'spike' }]);
   assert.equal(hazardous.isSafe(from), false);
-});
-
-test('Penrose 方环的接缝在完整旋转过程中具有相同投影', () => {
-  const loop = new PenroseLoop();
-  for (let index = 0; index <= 160; index += 1) {
-    const angle = index * Math.PI / 80;
-    const ray = stairRay(angle).normalize();
-    const first = penroseFaces[0], last = penroseFaces.at(-1)!;
-    for (const [start, end] of [[first.corners[0], last.corners[1]], [first.corners[3], last.corners[2]]]) {
-      const a = stairPoint(start, 0, penroseBaseY, angle);
-      const b = stairPoint(end, penroseStepCount, penroseBaseY + penroseCycleHeight, angle);
-      assert.ok(b.sub(a).cross(ray).length() < 1e-8);
-    }
-    assert.equal(loop.geometry(angle).positions.length / 3, 16 * 5 * 6);
-  }
-});
-
-test('球体通过真实物理持续绕行 Penrose 方环并保持连续显示', () => {
-  const physics = new PhysicsEngine(sceneBlocks()), player = new PlayerState(), loop = new PenroseLoop();
-  const camera = new THREE.OrthographicCamera(-640, 640, 400, -400, 1, 5000);
-  const y = penroseBaseY + 20.02;
-  const corners = [[440, -80], [600, -80], [600, 80], [440, 80]];
-  for (const direction of [1, -1]) {
-    player.place(new THREE.Vector3(440, y, -80)); loop.reset();
-    let previous: THREE.Vector3 | undefined;
-    let previousPosition: THREE.Vector3 | undefined;
-    let frame = 0;
-    for (let turn = 1; turn <= 12; turn += 1) {
-      const [x, z] = corners[(turn * direction % 4 + 4) % 4];
-      const target = new THREE.Vector3(x, y, z);
-      let reached = false;
-      for (let tick = 0; tick < 160; tick += 1) {
-        assert.ok(physics.step(player, navigationForce(player.pos, player.vel, target)));
-        assert.ok(player.pos.y > y - 0.1, `Lost support at ${player.pos.toArray()}`);
-        loop.track(player.pos);
-        const angle = 0.3 + frame++ * 0.004;
-        camera.position.set(Math.sin(angle) * 800, 640, Math.cos(angle) * 800); camera.lookAt(0, 0, 0); camera.updateMatrixWorld();
-        const rendered = loop.renderPosition(player.pos, angle).project(camera);
-        const visibleDistance = previous ? Math.hypot(rendered.x - previous.x, rendered.y - previous.y) : 0;
-        if (previous) assert.ok(visibleDistance < 0.035, JSON.stringify({ distance: visibleDistance,
-          previousPosition: previousPosition?.toArray(), position: player.pos.toArray(), angle, turn, direction,
-          t: loop.locate(player.pos).t, previous: previous.toArray(), rendered: rendered.toArray() }));
-        previous = rendered;
-        previousPosition = player.pos.clone();
-        if (player.pos.distanceTo(target) < 0.5) { reached = true; break; }
-      }
-      assert.ok(reached, `Did not reach ${target.toArray()}`);
-    }
-    assert.ok(Math.abs(loop.cycle) >= 2);
-  }
-  physics.dispose();
-});
-
-test('Blivet 的三根圆柱通过真实碰撞路径连接两根方形支臂并能返回', () => {
-  const space = new BlivetSpace();
-  for (const lane of [-80, 0, 80]) {
-    const from = new THREE.Vector3(0, 80.02, lane);
-    const target = new THREE.Vector3(460, 80.02, lane === -80 ? -40 : 80);
-    const outward = space.path(from, target), inward = space.path(target, from);
-    assert.ok(outward.length && inward.length);
-    assert.ok(space.verifyPath(from, outward), `Forward route ${lane}`);
-    assert.ok(space.verifyPath(target, inward), `Return route ${lane}`);
-  }
-  assert.equal(space.path(blivetLocalEntry, new THREE.Vector3(200, 80, 180)).length, 0);
-  for (const rail of blivetRails) {
-    let previous: THREE.Vector3 | undefined;
-    for (let index = 0; index <= 400; index += 1) {
-      const position = rail.from.clone().lerp(rail.to, index / 400);
-      const rendered = space.renderPosition(position, Math.PI / 4);
-      if (previous) assert.ok(previous.distanceTo(rendered) < 2, 'Blivet junction position changed discontinuously');
-      previous = rendered;
-    }
-  }
-  space.dispose();
-});
-
-test('Playground 入口使用真实跳跃连接并拒绝中央空处', () => {
-  const graph = new SafetyNavigationGraph(sceneBlocks(), playgroundJumpConnections());
-  assert.ok(graph.findPath(spawn, new THREE.Vector3(480, 92.02, -80)).length);
-  assert.equal(graph.isSafe(new THREE.Vector3(520, 92.02, 0)), false);
 });

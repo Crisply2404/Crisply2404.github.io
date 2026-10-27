@@ -1,13 +1,9 @@
 import * as THREE from 'three';
 import { CONFIG } from './config';
 
-export interface BlockData { gx: number; gy: number; gz: number; type: 'standard' | 'spike'; centerY?: number; height?: number }
+export interface BlockData { gx: number; gy: number; gz: number; type: 'standard' | 'spike' }
 export type Segment = readonly [THREE.Vector3, THREE.Vector3];
 export const blockKey = (x: number, y: number, z: number): string => `${x}:${y}:${z}`;
-
-export const blockCenterY = (block: BlockData): number => block.centerY ?? block.gy * CONFIG.blockSize;
-export const blockHeight = (block: BlockData): number => block.height ?? CONFIG.blockSize;
-export const blockTopY = (block: BlockData): number => blockCenterY(block) + blockHeight(block) / 2;
 
 export function buildEdges(blocks: readonly BlockData[]): Segment[] {
   const blockMap = new Map(blocks.map((block) => [blockKey(block.gx, block.gy, block.gz), block]));
@@ -20,25 +16,6 @@ export function buildEdges(blocks: readonly BlockData[]): Segment[] {
     const b = forward ? end : start;
     segments.set(`${a.toArray()}:${b.toArray()}`, [a, b]);
   };
-  if (blocks.some((block) => block.centerY !== undefined)) {
-    const regularEdges = buildEdges(blocks.filter((block) => block.centerY === undefined));
-    for (const block of blocks.filter((candidate) => candidate.centerY !== undefined)) {
-      if (block.type !== 'standard') continue;
-      const center = new THREE.Vector3(block.gx * CONFIG.blockSize, blockCenterY(block), block.gz * CONFIG.blockSize);
-      const half = CONFIG.blockSize / 2;
-      const halfHeight = blockHeight(block) / 2;
-      const corners = [
-        new THREE.Vector3(-half, -halfHeight, -half), new THREE.Vector3(half, -halfHeight, -half),
-        new THREE.Vector3(half, -halfHeight, half), new THREE.Vector3(-half, -halfHeight, half),
-        new THREE.Vector3(-half, halfHeight, -half), new THREE.Vector3(half, halfHeight, -half),
-        new THREE.Vector3(half, halfHeight, half), new THREE.Vector3(-half, halfHeight, half),
-      ].map((corner) => corner.add(center));
-      for (const [from, to] of [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]] as const) {
-        addEdge(corners[from], corners[to]);
-      }
-    }
-    return [...regularEdges, ...segments.values()];
-  }
   for (const block of blocks) {
     if (block.type === 'spike') {
       const center = new THREE.Vector3(block.gx, block.gy, block.gz).multiplyScalar(CONFIG.blockSize);

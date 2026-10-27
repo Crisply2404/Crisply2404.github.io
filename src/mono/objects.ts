@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { SVGLoader } from 'three/addons/loaders/SVGLoader.js';
 import type { DoorGraphics } from '../types';
 import { CONFIG } from './config';
-import { blockCenterY, blockHeight, buildEdges, type BlockData, type Segment } from './blocks';
+import { buildEdges, type BlockData, type Segment } from './blocks';
 import { MonoRenderer } from './renderer';
 import exitSign from './assets/exit-sign.png';
 import transparentExitSign from './icons/exit_sign.svg';
@@ -27,15 +27,13 @@ export class VisualBuilder {
     const standard = blocks.filter((block) => block.type === 'standard');
     const boxes = new THREE.InstancedMesh(new THREE.BoxGeometry(40, 40, 40), this.materialBlack, standard.length);
     boxes.name = 'BlackBlocks';
-    standard.forEach((block, index) => boxes.setMatrixAt(index, new THREE.Matrix4().compose(
-      new THREE.Vector3(block.gx * 40, blockCenterY(block), block.gz * 40), new THREE.Quaternion(),
-      new THREE.Vector3(1, blockHeight(block) / 40, 1))));
+    standard.forEach((block, index) => boxes.setMatrixAt(index, new THREE.Matrix4().makeTranslation(block.gx * 40, block.gy * 40, block.gz * 40)));
     group.add(boxes);
     const spikes = blocks.filter((block) => block.type === 'spike');
     if (spikes.length) {
       const spikeMesh = new THREE.InstancedMesh(this.createSpikeGeometry(), this.materialBlack, spikes.length);
       spikeMesh.name = 'BlackSpikes';
-      spikes.forEach((block, index) => spikeMesh.setMatrixAt(index, new THREE.Matrix4().makeTranslation(block.gx * 40, blockCenterY(block) - 20, block.gz * 40)));
+      spikes.forEach((block, index) => spikeMesh.setMatrixAt(index, new THREE.Matrix4().makeTranslation(block.gx * 40, block.gy * 40 - 20, block.gz * 40)));
       group.add(spikeMesh);
     }
     group.add(this.createStroke(buildEdges(blocks), roundCaps));

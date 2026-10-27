@@ -134,7 +134,7 @@ await Promise.all([
 await page.waitForFunction(() => window.game.path.length === 0, undefined, { polling: 100 });
 const safe = await state();
 assert.ok(Math.abs(safe.z + 100) < 5, JSON.stringify(safe));
-await clickWorld(2000, -100);
+await clickWorld(200, -100);
 assert.equal((await state()).path, 0);
 assert.ok(Math.abs((await state()).z - safe.z) < 1);
 await page.keyboard.press('Tab');

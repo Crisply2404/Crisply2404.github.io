@@ -1,7 +1,7 @@
 import RAPIER from '@dimforge/rapier3d-compat';
 import * as THREE from 'three';
 import { CONFIG, PHYSICS } from './config';
-import { blockCenterY, blockHeight, type BlockData } from './blocks';
+import type { BlockData } from './blocks';
 
 export const physicsReady = RAPIER.init();
 
@@ -40,22 +40,15 @@ export class PhysicsEngine {
   private readonly hazards = new Set<number>();
   private readonly rotation = { x: 0, y: 0, z: 0, w: 1 };
 
-  public constructor(blocks: readonly BlockData[], hulls: readonly Float32Array[] = []) {
-    for (const vertices of hulls) {
-      const descriptor = RAPIER.ColliderDesc.convexHull(vertices);
-      if (!descriptor) throw new Error('Surface hull is invalid');
-      this.world.createCollider(descriptor);
-    }
+  public constructor(blocks: readonly BlockData[]) {
     for (const block of blocks) {
-      if (block.type === 'standard' && blockHeight(block) <= 0) throw new Error('Platform height must be positive');
       let descriptor: RAPIER.ColliderDesc;
       if (block.type === 'spike') {
         const hull = RAPIER.ColliderDesc.convexHull(new Float32Array([-20, -20, -20, 20, -20, -20, -20, -20, 20, 20, -20, 20, 0, 20, 0]));
         if (!hull) throw new Error('Spike hull is invalid');
         descriptor = hull;
-      } else descriptor = RAPIER.ColliderDesc.cuboid(20 - PHYSICS.sideContactTolerance,
-        blockHeight(block) / 2, 20 - PHYSICS.sideContactTolerance);
-      descriptor.setTranslation(block.gx * 40, blockCenterY(block), block.gz * 40);
+      } else descriptor = RAPIER.ColliderDesc.cuboid(20 - PHYSICS.sideContactTolerance, 20, 20 - PHYSICS.sideContactTolerance);
+      descriptor.setTranslation(block.gx * 40, block.gy * 40, block.gz * 40);
       const collider = this.world.createCollider(descriptor);
       if (block.type === 'spike') this.hazards.add(collider.handle);
     }
@@ -109,16 +102,6 @@ export class PhysicsEngine {
       if (player.vel.dot(normal) < 0) player.vel.addScaledVector(normal, -player.vel.dot(normal));
       motion.multiplyScalar(1 - hit.time_of_impact);
       if (motion.dot(normal) < 0) motion.addScaledVector(normal, -motion.dot(normal));
-    }
-    if (!grounded && player.vel.y <= 0) {
-      const ray = new RAPIER.Ray(player.pos, { x: 0, y: -1, z: 0 });
-      const support = this.world.castRayAndGetNormal(ray, CONFIG.playerRadius + PHYSICS.safeMargin, true);
-      if (support && support.normal.y > 0.999 && support.timeOfImpact > CONFIG.playerRadius - CONFIG.gravity - PHYSICS.safeMargin) {
-        if (this.hazards.has(support.collider.handle)) return false;
-        player.pos.y += CONFIG.playerRadius + PHYSICS.safeMargin - support.timeOfImpact;
-        player.vel.y = 0; grounded = true;
-        this.contactPosition.copy(player.pos).add(new THREE.Vector3(0, -CONFIG.playerRadius, 0));
-      }
     }
     player.grounded = grounded;
     if (grounded) player.coyoteTime = PHYSICS.coyoteFrames;

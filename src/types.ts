@@ -29,7 +29,6 @@ export interface NavigationNode {
 }
 
 export interface AvatarState {
-  space?: 'blivet';
   id: string;
   x: number;
   y: number;

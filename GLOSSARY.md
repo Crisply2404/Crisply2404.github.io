@@ -34,15 +34,6 @@ The original standard block with one spike on top, replacing the mouse cursor in
 A straight, extendable passage whose configured doors are the site's entrances.
 _Avoid_: map, hub
 
-**Playground**:
-The doorless platform connected beside the Corridor. It uses the same 40 world-unit tile and 20 world-unit player radius, and contains the Blivet and Penrose stairs objects.
-
-**Penrose loop**:
-The Playground's single closed square staircase surrounding a central opening. Its 16 treads rise by 6 world units and use a 40 world-unit width. A finite collision chart identifies the ends of the loop; the display maps each tread into a camera-dependent depth page. The seam closes along the viewing ray throughout camera rotation. Sphere contact and a continuous depth-page connection keep the ball visible and supported during repeated upward and downward travel.
-
-**Blivet**:
-The Playground's impossible object joining three cylindrical prongs to two rectangular prongs. The outline uses AnonMoos's public-domain Poiuyt drawing with MONO TOWER screen-space strokes and separate opaque surface patches. Its spatial chart contains radius-20 cylinder collision hulls, two rectangular arms and reversible branch connections. A camera-dependent projection atlas maps these surfaces to the classic outline. The ball can walk and jump through all three-to-two connections; a distinct presence space identifies its collision coordinates.
-
 **Door**:
 A configured entrance that names a site area and has a side, position, path, and visual treatment.
 _Avoid_: link card, portal

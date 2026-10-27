@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { blockKey, blockTopY, type BlockData } from './blocks';
+import { blockKey, type BlockData } from './blocks';
 import { CONFIG } from './config';
 
 export class NavigationRipple extends THREE.Group {
@@ -38,7 +38,7 @@ export class NavigationRipple extends THREE.Group {
         * renderer.getDrawingBufferSize(this.viewport).y / 2;
     };
     surfaces.forEach((block, index) => mesh.setMatrixAt(index, new THREE.Matrix4()
-      .makeRotationX(-Math.PI / 2).setPosition(block.gx * 40, blockTopY(block) + 0.05, block.gz * 40)));
+      .makeRotationX(-Math.PI / 2).setPosition(block.gx * 40, block.gy * 40 + 20.05, block.gz * 40)));
     this.add(mesh);
   }
 
@@ -47,14 +47,6 @@ export class NavigationRipple extends THREE.Group {
     this.material.uniforms.progress.value = 0;
     this.elapsed = 0; this.visible = true;
   }
-
-  public addSurface(geometry: THREE.BufferGeometry): void {
-    const mesh = new THREE.InstancedMesh(geometry, this.material, 1);
-    mesh.setMatrixAt(0, new THREE.Matrix4()); mesh.frustumCulled = false;
-    this.add(mesh);
-  }
-
-  public moveCenter(position: THREE.Vector3): void { this.material.uniforms.center.value.copy(position); }
 
   public update(delta: number): void {
     this.elapsed += delta;

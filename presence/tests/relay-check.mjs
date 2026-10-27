@@ -40,11 +40,6 @@ assert.ok(!first.messages.some((message) => message.type === 'state' && message.
 const third = await connect();
 await until(() => third.messages.some((message) => message.type === 'snapshot'));
 assert.ok(third.messages.find((message) => message.type === 'snapshot').avatars.some((avatar) => avatar.id === first.id));
-const chartState = { ...state, x: 1000, y: 80.02, z: -80, space: 'blivet' };
-first.socket.send(JSON.stringify({ type: 'state', avatar: chartState }));
-await until(() => second.messages.some((message) => message.type === 'state' && message.avatar.id === first.id && message.avatar.space === 'blivet'));
-assert.deepEqual(second.messages.findLast((message) => message.type === 'state' && message.avatar.id === first.id).avatar,
-  { id: first.id, ...chartState });
 await new Promise((resolve) => setTimeout(resolve, 120));
 const before = second.messages.filter((message) => message.type === 'state' && message.avatar.id === first.id).length;
 for (let index = 0; index < 50; index += 1) first.socket.send(JSON.stringify({ type: 'state', avatar: { ...state, x: index } }));

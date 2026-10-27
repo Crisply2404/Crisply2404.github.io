@@ -35,7 +35,7 @@ export class PresenceClient {
     const now = performance.now();
     if (now - this.lastSentAt < 100) return;
     const previous = this.previousState;
-    if (previous && avatar.space === previous.space && Math.hypot(avatar.x - previous.x, avatar.y - previous.y, avatar.z - previous.z) < 0.25
+    if (previous && Math.hypot(avatar.x - previous.x, avatar.y - previous.y, avatar.z - previous.z) < 0.25
       && Math.hypot(avatar.vx - previous.vx, avatar.vy - previous.vy, avatar.vz - previous.vz) < 0.1) return;
     const payload = JSON.stringify({ type: 'state', avatar });
     this.socket.send(payload);

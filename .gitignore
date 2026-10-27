@@ -13,6 +13,7 @@ presence/dist/
 presence/.wrangler/
 presence/.dev.vars
 .work/
+/local-drafts/
 test-results/
 playwright-report/
 

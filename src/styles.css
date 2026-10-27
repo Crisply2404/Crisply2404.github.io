@@ -758,6 +758,17 @@ a {
   text-underline-offset: 4px;
 }
 
+.reading-column article {
+  overflow-wrap: anywhere;
+}
+
+.reading-column article img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 24px auto;
+}
+
 .empty-state {
   margin-top: 48px;
   color: rgba(255, 255, 255, 0.56);
